@@ -117,32 +117,96 @@ async def handle_wifi():
         wlan.connect(ssid, password)
         await asyncio.sleep(1)
 
+async def handle_ble_connect():
+    """ Connect to the primary and secondary device BLE device """
+    while not PRIMARY_DEVICE['connected'] or not SECONDARY_DEVICE['connected']:
+        if not PRIMARY_DEVICE['connected']:
+            try:
+                print(f"Trying to connect to primary device {PRIMARY_DEVICE['mac']}...")
+                ble.gap_connect(0, ubinascii.unhexlify(PRIMARY_DEVICE['mac'].replace(':', '')))
+                PRIMARY_DEVICE['connected'] = True
+                PRIMARY_DEVICE['conn_handle'] = ble.gap_get_conn_handle(PRIMARY_DEVICE['mac'])
+                print(f"Primary device connected with handle {PRIMARY_DEVICE['conn_handle']}")
+            except Exception as e:
+                print(f"Failed to connect to primary device: {e}")
+        
+        if PRIMARY_DEVICE['connected'] and not SECONDARY_DEVICE['connected']:
+            try:
+                print(f"Trying to connect to secondary device {SECONDARY_DEVICE['mac']}...")
+                ble.gap_connect(0, ubinascii.unhexlify(SECONDARY_DEVICE['mac'].replace(':', '')))
+                SECONDARY_DEVICE['connected'] = True
+                SECONDARY_DEVICE['conn_handle'] = ble.gap_get_conn_handle(SECONDARY_DEVICE['mac'])
+                print(f"Secondary device connected with handle {SECONDARY_DEVICE['conn_handle']}")
+            except Exception as e:
+                print(f"Failed to connect to secondary device: {e}")
+        
+        await asyncio.sleep(2)  # Wait before retrying
+
+def handle_ble_disconnect(data):
+    """
+    Handle peripheral disconnection events.
+    Not asynchronous, but called from the BLE IRQ handler.
+    """
+    _, _, addr = data
+    mac = ubinascii.hexlify(addr).decode('utf-8')
+    mac = ':'.join([mac[i:i+2] for i in range(0, len(mac), 2)])
+    
+    # Determine which device disconnected
+    if mac.lower() == PRIMARY_DEVICE['mac'].lower():
+        print(f"\nPrimary device disconnected!")
+        PRIMARY_DEVICE['connected'] = False
+        PRIMARY_DEVICE['conn_handle'] = None
+
+        # Disconnect secondary device if it's connected
+        if SECONDARY_DEVICE['connected'] and SECONDARY_DEVICE['conn_handle'] is not None:
+            print("Disconnecting secondary device due to primary disconnect...")
+            try:
+                ble.gap_disconnect(SECONDARY_DEVICE['conn_handle'])
+                print("Secondary device disconnected successfully.")
+                SECONDARY_DEVICE['connected'] = False
+                SECONDARY_DEVICE['conn_handle'] = None
+            except Exception as e:
+                print(f"Error disconnecting secondary device: {e}")
+        
+    elif mac.lower() == SECONDARY_DEVICE['mac'].lower():
+        print(f"\nSecondary device disconnected!")
+        SECONDARY_DEVICE['connected'] = False
+        SECONDARY_DEVICE['conn_handle'] = None
+    else:
+        print(f"\nUnknown device disconnected: {mac}")
 
 def ble_irq_handler(event, data):
     """Handle all BLE IRQ events"""
     try:
-        if event == _IRQ_SCAN_RESULT:
-            # handle_scan_result(data)
-            # TODO - implement scan result handling
-            return
-        elif event == _IRQ_SCAN_DONE:
-            # handle_scan_done()
-            # TODO - implement scan result handling
-            return
-        elif event == _IRQ_PERIPHERAL_CONNECT:
-            # handle_peripheral_connect(data)
-            # TODO - implement scan result handling
-            return
-        elif event == _IRQ_PERIPHERAL_DISCONNECT:
-            # handle_peripheral_disconnect(data)
-            # TODO - implement scan result handling
-            return
-        elif event == _IRQ_GATTC_NOTIFY:
-            # handle_notify(data)
-            # TODO - implement scan result handling
-            return
+        if event == _IRQ_PERIPHERAL_DISCONNECT:
+            handle_ble_disconnect(data)
     except Exception as e:
         print(f"\nError in BLE IRQ handler: {e}")
+
+async def main():
+    """Main async function that runs all tasks concurrently"""
+    # Set up BLE IRQ handler
+    ble.irq(ble_irq_handler)
+    
+    # Create all async tasks
+    tasks = [
+        handle_wifi(),
+        handle_ble_connect(),
+    ]
+    
+    # Run all tasks concurrently
+    await asyncio.gather(*tasks)
+
+# Main execution
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("Application stopped by user")
+    except Exception as e:
+        print(f"Application error: {e}")
+        # Optionally restart or handle gracefully
+
 
 # def handle_scan_result(data):
 #     """Handle scan result events"""
@@ -225,42 +289,7 @@ def ble_irq_handler(event, data):
 #     else:
 #         print(f"\nUnknown device connected: {mac}")
 
-# def handle_peripheral_disconnect(data):
-#     """Handle peripheral disconnection events"""
-#     conn_handle, addr_type, addr = data
-#     mac = ubinascii.hexlify(addr).decode('utf-8')
-#     mac = ':'.join([mac[i:i+2] for i in range(0, len(mac), 2)])
-    
-#     # Determine which device disconnected
-#     if mac.lower() == PRIMARY_DEVICE['mac'].lower():
-#         print(f"\nPrimary device disconnected!")
-#         PRIMARY_DEVICE['connected'] = False
-#         PRIMARY_DEVICE['conn_handle'] = None
-        
-#         # Disconnect secondary device if it's connected
-#         if SECONDARY_DEVICE['connected'] and SECONDARY_DEVICE['conn_handle'] is not None:
-#             print("Disconnecting secondary device due to primary disconnect...")
-#             try:
-#                 ble.gap_disconnect(SECONDARY_DEVICE['conn_handle'])
-#                 print("Secondary device disconnected successfully.")
-#             except Exception as e:
-#                 print(f"Error disconnecting secondary device: {e}")
-#                 # Reset secondary device state anyway
-#                 SECONDARY_DEVICE['connected'] = False
-#                 SECONDARY_DEVICE['conn_handle'] = None
-        
-#         # Reset found status to allow reconnection
-#         PRIMARY_DEVICE['found'] = False
-#         SECONDARY_DEVICE['found'] = False
-        
-#     elif mac.lower() == SECONDARY_DEVICE['mac'].lower():
-#         print(f"\nSecondary device disconnected!")
-#         SECONDARY_DEVICE['connected'] = False
-#         SECONDARY_DEVICE['conn_handle'] = None
-#         # Reset found status to allow reconnection
-#         SECONDARY_DEVICE['found'] = False
-#     else:
-#         print(f"\nUnknown device disconnected: {mac}")
+
 
 # def handle_notify(data):
 #     """Handle notification data from devices"""
