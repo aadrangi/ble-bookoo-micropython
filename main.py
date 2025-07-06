@@ -11,7 +11,7 @@ password = 'kayvaan1998'
 
 wlan = network.WLAN(network.STA_IF)
 wlan.active(True)
-wlan.connect(ssid, password)
+
 
 # bluetooth setup
 ble = bluetooth.BLE()
@@ -110,21 +110,39 @@ def decode_adv_data(adv_data):
     
     return result
 
-# def ble_irq_handler(event, data):
-#     """Handle all BLE IRQ events"""
-#     try:
-#         if event == _IRQ_SCAN_RESULT:
-#             handle_scan_result(data)
-#         elif event == _IRQ_SCAN_DONE:
-#             handle_scan_done()
-#         elif event == _IRQ_PERIPHERAL_CONNECT:
-#             handle_peripheral_connect(data)
-#         elif event == _IRQ_PERIPHERAL_DISCONNECT:
-#             handle_peripheral_disconnect(data)
-#         elif event == _IRQ_GATTC_NOTIFY:
-#             handle_notify(data)
-#     except Exception as e:
-#         print(f"\nError in BLE IRQ handler: {e}")
+async def handle_wifi():
+    """Handle WiFi connection and scanning for BLE devices"""
+    while not wlan.isconnected():
+        print("Attempting WiFi connection...")
+        wlan.connect(ssid, password)
+        await asyncio.sleep(1)
+
+
+def ble_irq_handler(event, data):
+    """Handle all BLE IRQ events"""
+    try:
+        if event == _IRQ_SCAN_RESULT:
+            # handle_scan_result(data)
+            # TODO - implement scan result handling
+            return
+        elif event == _IRQ_SCAN_DONE:
+            # handle_scan_done()
+            # TODO - implement scan result handling
+            return
+        elif event == _IRQ_PERIPHERAL_CONNECT:
+            # handle_peripheral_connect(data)
+            # TODO - implement scan result handling
+            return
+        elif event == _IRQ_PERIPHERAL_DISCONNECT:
+            # handle_peripheral_disconnect(data)
+            # TODO - implement scan result handling
+            return
+        elif event == _IRQ_GATTC_NOTIFY:
+            # handle_notify(data)
+            # TODO - implement scan result handling
+            return
+    except Exception as e:
+        print(f"\nError in BLE IRQ handler: {e}")
 
 # def handle_scan_result(data):
 #     """Handle scan result events"""
