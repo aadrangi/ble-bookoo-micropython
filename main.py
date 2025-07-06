@@ -114,8 +114,11 @@ async def handle_wifi():
     """Handle WiFi connection and scanning for BLE devices"""
     while not wlan.isconnected():
         print("Attempting WiFi connection...")
-        wlan.connect(ssid, password)
-        await asyncio.sleep(1)
+        try:
+            wlan.connect(ssid, password)
+        except Exception as e:
+            print(f"Failed to connect to WiFi: {e}")
+        await asyncio.sleep(3)
 
 async def handle_ble_connect():
     """ Connect to the primary and secondary device BLE device """
@@ -140,7 +143,7 @@ async def handle_ble_connect():
             except Exception as e:
                 print(f"Failed to connect to secondary device: {e}")
         
-        await asyncio.sleep(2)  # Wait before retrying
+        await asyncio.sleep(3)  # Wait before retrying
 
 def handle_ble_disconnect(data):
     """
