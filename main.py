@@ -213,8 +213,8 @@ class MainApp:
     
     def setup_functions(self):
         """Setup functions to be called periodically"""
-        self.event_handler.add_function(connect_wifi(), interval=10, name='WiFi Handler')
-        self.event_handler.add_function(connect_ble(), interval=5, name='BLE Connect Handler')
+        self.event_handler.register_function(connect_wifi(), interval=10)
+        self.event_handler.register_function(connect_ble(), interval=5)
     
     def run(self):
         """Main run loop - never blocks"""
