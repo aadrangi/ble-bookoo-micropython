@@ -1,5 +1,4 @@
 # main.py
-print("before imports")
 import network
 import time
 import bluetooth
@@ -11,7 +10,6 @@ ssid = 'SomewhatPoweredByWiFi'
 password = 'kayvaan1998'
 wlan = network.WLAN(network.STA_IF)
 wlan.active(True)
-
 
 # global bluetooth setup
 ble = bluetooth.BLE()
@@ -62,7 +60,6 @@ SECONDARY_DEVICE = {
     "conn_handle": None,
 }
 
-
 def decode_adv_data(adv_data):
     """Decode BLE advertising data from memoryview/bytes into readable format"""
     if isinstance(adv_data, memoryview):
@@ -112,32 +109,48 @@ def decode_adv_data(adv_data):
 
 def connect_wifi():
     """Handle WiFi connection and scanning for BLE devices"""
-    while not wlan.isconnected():
+    if not wlan.isconnected():
         print("Attempting WiFi connection...")
         try:
             wlan.connect(ssid, password)
+            timeout = 10
+            while not wlan.isconnected() and timeout > 0:
+                time.sleep(1)
+                timeout -= 1
             if wlan.isconnected():
                 print("WiFi connected successfully!")
                 print("Network config:", wlan.ifconfig())
+                return {"status": "connected"}
+            else:
+                print("WiFi connection timeout")
+                return {"status": "timeout"}
         except Exception as e:
             print(f"Failed to connect to WiFi: {e}")
+            return {"error": str(e)}
+    else:
+        return {"status": "already_connected"}
 
 def connect_ble():
-    """ Connect to the primary and secondary device BLE device """
-    while not PRIMARY_DEVICE['connected'] or not SECONDARY_DEVICE['connected']:
-        if not PRIMARY_DEVICE['connected']:
-            try:
-                print(f"Trying to connect to primary device {PRIMARY_DEVICE['mac']}...")
-                ble.gap_connect(0, ubinascii.unhexlify(PRIMARY_DEVICE['mac'].replace(':', '')))
-            except Exception as e:
-                print(f"Failed to connect to primary device: {e}")
-        
-        if PRIMARY_DEVICE['connected'] and not SECONDARY_DEVICE['connected']:
-            try:
-                print(f"Trying to connect to secondary device {SECONDARY_DEVICE['mac']}...")
-                ble.gap_connect(0, ubinascii.unhexlify(SECONDARY_DEVICE['mac'].replace(':', '')))
-            except Exception as e:
-                print(f"Failed to connect to secondary device: {e}")
+    """Connect to the primary and secondary device BLE device"""
+    if not PRIMARY_DEVICE['connected']:
+        try:
+            print(f"Trying to connect to primary device {PRIMARY_DEVICE['mac']}...")
+            ble.gap_connect(0, ubinascii.unhexlify(PRIMARY_DEVICE['mac'].replace(':', '')))
+            return {"status": "connecting_primary"}
+        except Exception as e:
+            print(f"Failed to connect to primary device: {e}")
+            return {"error": f"primary_connect_failed: {e}"}
+    
+    if PRIMARY_DEVICE['connected'] and not SECONDARY_DEVICE['connected']:
+        try:
+            print(f"Trying to connect to secondary device {SECONDARY_DEVICE['mac']}...")
+            ble.gap_connect(0, ubinascii.unhexlify(SECONDARY_DEVICE['mac'].replace(':', '')))
+            return {"status": "connecting_secondary"}
+        except Exception as e:
+            print(f"Failed to connect to secondary device: {e}")
+            return {"error": f"secondary_connect_failed: {e}"}
+    
+    return {"status": "all_connected"}
 
 def handle_ble_connect(data):
     """
@@ -210,22 +223,24 @@ class MainApp:
     def __init__(self):
         print("Initializing MainApp...")
         self.event_handler = EventHandler()
+        # Setup the IRQ handler once during initialization
+        ble.irq(ble_irq_handler)
     
     def setup_functions(self):
         """Setup functions to be called periodically"""
-        self.event_handler.register_function(connect_wifi(), interval=10)
-        self.event_handler.register_function(connect_ble(), interval=5)
+        # Fixed: Pass function references, not function calls
+        self.event_handler.register_function(connect_wifi, interval=10)
+        self.event_handler.register_function(connect_ble, interval=5)
     
     def run(self):
         """Main run loop - never blocks"""
         print("Starting event handler...")
         
+        # Setup the periodic functions
+        self.setup_functions()
+        
         while True:
             try:
-
-                # setup the IRQ handler
-                ble.irq(ble_irq_handler)
-
                 # Run one cycle of the event handler
                 self.event_handler.run_cycle()
                 
@@ -242,6 +257,12 @@ class MainApp:
 # Usage
 if __name__ == "__main__":
     print("Starting MainApp...")
-    # Initialize and run the main application
-    app = MainApp()
-    app.run()
+    try:
+        # Initialize and run the main application
+        app = MainApp()
+        app.run()
+    except Exception as e:
+        print(f"Fatal error: {e}")
+        # Print stack trace for debugging
+        import sys
+        sys.print_exception(e)
