@@ -6,7 +6,7 @@ class EventHandler:
         self.current_index = 0
         self.last_run_times = {}
         self.function_intervals = {}
-        self.max_execution_time = 0.1  # Max time each function can run (100ms)
+        self.max_execution_time = 2  # Max time each function can run
         
     def register_function(self, func, interval=1.0, name=None):
         """Register a function to run at specified intervals"""
