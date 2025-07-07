@@ -173,6 +173,7 @@ def handle_ble_connect(data):
         print(f"*** SECONDARY DEVICE CONNECTED! ***")
         SECONDARY_DEVICE['connected'] = True
         SECONDARY_DEVICE['conn_handle'] = conn_handle
+        print(f"Secondary device handle: {SECONDARY_DEVICE['conn_handle']}")
     else:
         print(f"*** UNKNOWN DEVICE CONNECTED: {mac} ***")
     
