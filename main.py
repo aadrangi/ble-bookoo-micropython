@@ -178,6 +178,45 @@ def read_ble_data():
         print(f"Failed to read from characteristic {SECONDARY_DEVICE['characteristics'][0]}: {e}")
         # return {"error": f"read_failed: {e}"}
     
+def parse_weight_data(data):
+    """Parse weight data from BookooScale (20-byte format)"""
+    if len(data) == 20:
+        # Extract battery level from byte 13
+        battery_level = data[13]
+        
+        # Extract weight from bytes 7, 8, 9 (24-bit integer)
+        weight = (
+            (data[7] << 16) +
+            (data[8] << 8) +
+            data[9]
+        )
+        
+        # Check sign byte (byte 6)
+        if data[6] == 45:  # 45 is ASCII for '-'
+            weight = weight * -1
+        
+        # Convert to final units (divide by 100)
+        weight_kg = weight / 100
+        
+        return weight_kg, battery_level
+    return None, None
+
+def parse_pressure_data(data):
+    """Parse pressure data from BookooPressure sensor (10-byte format)"""
+    if len(data) == 10:
+        # Extract pressure from bytes 4 and 5 (16-bit value)
+        pressure_raw = (data[4] << 8) + data[5]
+        
+        # Convert to final units (divide by 100)
+        pressure = pressure_raw / 100
+        
+        # Note: Battery level information is not available in the pressure data
+        # from the TypeScript implementation - only pressure readings
+        battery_level = None
+        
+        return pressure, battery_level
+    return None, None
+
 
 def handle_ble_connect(data):
     """Handle BLE connection events"""
@@ -249,9 +288,22 @@ def handle_ble_read_result(data):
     if conn_handle == PRIMARY_DEVICE['conn_handle']:
         mac = PRIMARY_DEVICE['mac']
         print(f"\n=== READ RESULT FROM PRIMARY DEVICE ===")
+        try:            # Parse weight data from the value
+            result = parse_weight_data(value)
+            print(f"Parsed weight data: {result}")
+        except Exception as e:
+            print(f"Error parsing weight data: {e}")
+            result = None
     elif conn_handle == SECONDARY_DEVICE['conn_handle']:
         mac = SECONDARY_DEVICE['mac']
         print(f"\n=== READ RESULT FROM SECONDARY DEVICE ===")
+        try:
+            # Parse pressure data from the value
+            result = parse_pressure_data(value)
+            print(f"Parsed pressure data: {result}")
+        except Exception as e:
+            print(f"Error parsing pressure data: {e}")
+            result = None
     else:
         print(f"\n=== READ RESULT FROM UNKNOWN DEVICE ===")
     
