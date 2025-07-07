@@ -121,8 +121,7 @@ def connect_ble():
             print(f"Failed to connect to PRIMARY device: {e}")
             PRIMARY_DEVICE['connection_attempts'] += 1
             PRIMARY_DEVICE['last_attempt'] = current_time
-            return {"error": f"primary_connect_failed: {e}"}
-    
+            return {"error": f"primary_connect_failed: {e}"} 
     # Try to connect to secondary device if primary is connected
     elif PRIMARY_DEVICE['connected'] and not SECONDARY_DEVICE['connected']:
         if current_time - SECONDARY_DEVICE['last_attempt'] < 3:
@@ -134,7 +133,7 @@ def connect_ble():
             mac_str = SECONDARY_DEVICE['mac'].replace(':', '')
             addr_bytes = ubinascii.unhexlify(mac_str)
             
-            ble.gap_connect(1, addr_bytes)
+            ble.gap_connect(2, addr_bytes)
             
             SECONDARY_DEVICE['connection_attempts'] += 1
             SECONDARY_DEVICE['last_attempt'] = current_time
@@ -169,6 +168,7 @@ def handle_ble_connect(data):
         print(f"*** PRIMARY DEVICE CONNECTED! ***")
         PRIMARY_DEVICE['connected'] = True
         PRIMARY_DEVICE['conn_handle'] = conn_handle
+        print(f"Primary device handle: {PRIMARY_DEVICE['conn_handle']}")
     elif mac.lower() == SECONDARY_DEVICE['mac'].lower():
         print(f"*** SECONDARY DEVICE CONNECTED! ***")
         SECONDARY_DEVICE['connected'] = True
