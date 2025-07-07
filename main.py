@@ -155,6 +155,17 @@ def connect_ble():
     
     return {"status": "unknown_state"}
 
+def read_ble_data(conn_handle, characteristic_uuid):
+    """Read data from a BLE characteristic"""
+    try:
+        print(f"Reading data from characteristic {characteristic_uuid} on connection handle {conn_handle}...")
+        ble.gattc_read(conn_handle, characteristic_uuid)
+        time.sleep(0.2)  # Small delay to allow read command to process
+        return {"status": "read_command_sent"}
+    except Exception as e:
+        print(f"Failed to read from characteristic {characteristic_uuid}: {e}")
+        return {"error": f"read_failed: {e}"}
+
 def handle_ble_connect(data):
     """Handle BLE connection events"""
     conn_handle, _, addr = data
@@ -262,9 +273,10 @@ class MainApp:
     def setup_functions(self):
         """Setup functions to be called periodically"""
         self.event_handler.register_function(connect_wifi, interval=15)
-        self.event_handler.register_function(connect_ble, interval=5)  # Try every 2 seconds
+        self.event_handler.register_function(connect_ble, interval=2)  # Try every 2 seconds
         self.event_handler.register_function(debug_status, interval=10)  # Debug every 10 seconds
-    
+        self.event_handler.register_function(read_ble_data, interval=5, name="read_primary_data")
+
     def run(self):
         """Main run loop - never blocks"""
         print("Starting event handler...")
