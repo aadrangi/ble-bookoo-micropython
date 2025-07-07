@@ -111,7 +111,7 @@ def decode_adv_data(adv_data):
     
     return result
 
-def handle_wifi():
+def connect_wifi():
     """Handle WiFi connection and scanning for BLE devices"""
     while not wlan.isconnected():
         print("Attempting WiFi connection...")
@@ -123,16 +123,13 @@ def handle_wifi():
         except Exception as e:
             print(f"Failed to connect to WiFi: {e}")
 
-def handle_ble_connect():
+def connect_ble():
     """ Connect to the primary and secondary device BLE device """
     while not PRIMARY_DEVICE['connected'] or not SECONDARY_DEVICE['connected']:
         if not PRIMARY_DEVICE['connected']:
             try:
                 print(f"Trying to connect to primary device {PRIMARY_DEVICE['mac']}...")
                 ble.gap_connect(0, ubinascii.unhexlify(PRIMARY_DEVICE['mac'].replace(':', '')))
-                PRIMARY_DEVICE['connected'] = True
-                PRIMARY_DEVICE['conn_handle'] = ble.gap_get_conn_handle(PRIMARY_DEVICE['mac'])
-                print(f"Primary device connected with handle {PRIMARY_DEVICE['conn_handle']}")
             except Exception as e:
                 print(f"Failed to connect to primary device: {e}")
         
@@ -140,12 +137,29 @@ def handle_ble_connect():
             try:
                 print(f"Trying to connect to secondary device {SECONDARY_DEVICE['mac']}...")
                 ble.gap_connect(0, ubinascii.unhexlify(SECONDARY_DEVICE['mac'].replace(':', '')))
-                SECONDARY_DEVICE['connected'] = True
-                SECONDARY_DEVICE['conn_handle'] = ble.gap_get_conn_handle(SECONDARY_DEVICE['mac'])
-                print(f"Secondary device connected with handle {SECONDARY_DEVICE['conn_handle']}")
             except Exception as e:
                 print(f"Failed to connect to secondary device: {e}")
-        
+
+def handle_ble_connect(data):
+    """
+    assign connection handle and update connection status
+    """
+    _, conn_handle, addr = data
+    mac = ubinascii.hexlify(addr).decode('utf-8')
+    mac = ':'.join([mac[i:i+2] for i in range(0, len(mac), 2)])
+    
+    # Determine which device connected
+    if mac.lower() == PRIMARY_DEVICE['mac'].lower():
+        print(f"\nPrimary device connected: {mac}")
+        PRIMARY_DEVICE['connected'] = True
+        PRIMARY_DEVICE['conn_handle'] = conn_handle
+    elif mac.lower() == SECONDARY_DEVICE['mac'].lower():
+        print(f"\nSecondary device connected: {mac}")
+        SECONDARY_DEVICE['connected'] = True
+        SECONDARY_DEVICE['conn_handle'] = conn_handle
+    else:
+        print(f"\nUnknown device connected: {mac}")
+
 def handle_ble_disconnect(data):
     """
     Handle peripheral disconnection events.
@@ -182,8 +196,14 @@ def handle_ble_disconnect(data):
 def ble_irq_handler(event, data):
     """Handle all BLE IRQ events"""
     try:
-        if event == _IRQ_PERIPHERAL_DISCONNECT:
+        if event == _IRQ_PERIPHERAL_CONNECT:
+            handle_ble_connect(data)
+        elif event == _IRQ_PERIPHERAL_DISCONNECT:
             handle_ble_disconnect(data)
+        elif event == _IRQ_GATTC_NOTIFY:
+            # TODO
+            # handle_notify(data)
+            return
     except Exception as e:
         print(f"\nError in BLE IRQ handler: {e}")
 
@@ -193,8 +213,8 @@ class MainApp:
     
     def setup_functions(self):
         """Setup functions to be called periodically"""
-        self.event_handler.add_function(handle_wifi, interval=10, name='WiFi Handler')
-        self.event_handler.add_function(handle_ble_connect, interval=5, name='BLE Connect Handler')
+        self.event_handler.add_function(connect_wifi(), interval=10, name='WiFi Handler')
+        self.event_handler.add_function(connect_ble(), interval=5, name='BLE Connect Handler')
     
     def run(self):
         """Main run loop - never blocks"""
