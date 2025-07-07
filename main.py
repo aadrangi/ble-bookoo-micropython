@@ -1,24 +1,23 @@
 # main.py
+print("before imports")
 import network
 import time
 import bluetooth
 import ubinascii
-import asyncio
 from EventHandler import EventHandler
 
-# wifi setup
+# global wifi info
 ssid = 'SomewhatPoweredByWiFi'
 password = 'kayvaan1998'
-
 wlan = network.WLAN(network.STA_IF)
 wlan.active(True)
 
 
-# bluetooth setup
+# global bluetooth setup
 ble = bluetooth.BLE()
 ble.active(True)
 
-# BLE IRQ events
+# global BLE IRQ events
 _IRQ_CENTRAL_CONNECT = 1
 _IRQ_CENTRAL_DISCONNECT = 2
 _IRQ_GATTS_WRITE = 3
@@ -39,7 +38,7 @@ _IRQ_GATTC_WRITE_DONE = 17
 _IRQ_GATTC_NOTIFY = 18
 _IRQ_GATTC_INDICATE = 19
 
-# Target devices to find and connect
+# global Target devices to find and connect
 PRIMARY_DEVICE = {
     "name": "BOOKOO_SC",
     "mac": "d9:5d:10:01:41:7f",
@@ -209,6 +208,7 @@ def ble_irq_handler(event, data):
 
 class MainApp:
     def __init__(self):
+        print("Initializing MainApp...")
         self.event_handler = EventHandler()
     
     def setup_functions(self):
@@ -238,3 +238,10 @@ class MainApp:
             except Exception as e:
                 print(f"Main loop error: {e}")
                 time.sleep(1)  # Wait before continuing
+
+# Usage
+if __name__ == "__main__":
+    print("Starting MainApp...")
+    # Initialize and run the main application
+    app = MainApp()
+    app.run()
