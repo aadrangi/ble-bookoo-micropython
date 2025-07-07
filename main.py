@@ -325,7 +325,7 @@ def ble_irq_handler(event, data):
             handle_ble_connect(data)
         elif event == _IRQ_PERIPHERAL_DISCONNECT:
             handle_ble_disconnect(data)
-        elif event == _IRQ_GATTC_READ_RESULT:
+        elif event == _IRQ_GATTC_READ_DONE:
             handle_ble_read_result(data)
         else:
             # Print unknown events for debugging
