@@ -261,7 +261,7 @@ class MainApp:
     def setup_functions(self):
         """Setup functions to be called periodically"""
         self.event_handler.register_function(connect_wifi, interval=15)
-        self.event_handler.register_function(connect_ble, interval=2)  # Try every 2 seconds
+        self.event_handler.register_function(connect_ble, interval=5)  # Try every 2 seconds
         self.event_handler.register_function(debug_status, interval=10)  # Debug every 10 seconds
     
     def run(self):
