@@ -157,7 +157,7 @@ def connect_ble():
 
 def handle_ble_connect(data):
     """Handle BLE connection events"""
-    _, conn_handle, addr = data
+    conn_handle, _, addr = data
     mac = ubinascii.hexlify(addr).decode('utf-8')
     mac = ':'.join([mac[i:i+2] for i in range(0, len(mac), 2)])
     
