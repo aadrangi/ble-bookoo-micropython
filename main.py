@@ -109,7 +109,7 @@ def connect_ble():
             print(f"Address bytes length: {len(addr_bytes)}")
             
             # Attempt connection
-            ble.gap_connect(1, addr_bytes)
+            ble.gap_connect(0x01, addr_bytes)
             
             PRIMARY_DEVICE['connection_attempts'] += 1
             PRIMARY_DEVICE['last_attempt'] = current_time
@@ -133,7 +133,7 @@ def connect_ble():
             mac_str = SECONDARY_DEVICE['mac'].replace(':', '')
             addr_bytes = ubinascii.unhexlify(mac_str)
             
-            ble.gap_connect(2, addr_bytes)
+            ble.gap_connect(0x01, addr_bytes)
             
             SECONDARY_DEVICE['connection_attempts'] += 1
             SECONDARY_DEVICE['last_attempt'] = current_time
@@ -274,7 +274,7 @@ class MainApp:
                 self.event_handler.run_cycle()
                 
                 # Small sleep to prevent busy waiting
-                time.sleep(0.01)  # 10ms sleep
+                time.sleep(1)  # 1s sleep
                 
             except KeyboardInterrupt:
                 print("Stopping...")
