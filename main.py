@@ -155,16 +155,29 @@ def connect_ble():
     
     return {"status": "unknown_state"}
 
-def read_ble_data(conn_handle, characteristic_uuid):
+def read_ble_data():
     """Read data from a BLE characteristic"""
+
+    # Primary device
     try:
-        print(f"Reading data from characteristic {characteristic_uuid} on connection handle {conn_handle}...")
-        ble.gattc_read(conn_handle, characteristic_uuid)
+        print(f"Reading data from characteristic {PRIMARY_DEVICE['characteristics'][0]} on connection handle {PRIMARY_DEVICE['conn_handle']}...")
+        ble.gattc_read(PRIMARY_DEVICE['conn_handle'], PRIMARY_DEVICE['characteristics'][0])
         time.sleep(0.2)  # Small delay to allow read command to process
-        return {"status": "read_command_sent"}
+        # return {"status": "read_command_sent"}
     except Exception as e:
-        print(f"Failed to read from characteristic {characteristic_uuid}: {e}")
-        return {"error": f"read_failed: {e}"}
+        print(f"Failed to read from characteristic {PRIMARY_DEVICE['characteristics'][0]}: {e}")
+        # return {"error": f"read_failed: {e}"}
+
+    # Secondary device
+    try:
+        print(f"Reading data from characteristic {SECONDARY_DEVICE['characteristics'][0]} on connection handle {SECONDARY_DEVICE['conn_handle']}...")
+        ble.gattc_read(SECONDARY_DEVICE['conn_handle'], SECONDARY_DEVICE['characteristics'][0])
+        time.sleep(0.2)  # Small delay to allow read command to process
+        # return {"status": "read_command_sent"} 
+    except Exception as e:
+        print(f"Failed to read from characteristic {SECONDARY_DEVICE['characteristics'][0]}: {e}")
+        # return {"error": f"read_failed: {e}"}
+    
 
 def handle_ble_connect(data):
     """Handle BLE connection events"""
@@ -227,6 +240,31 @@ def handle_ble_disconnect(data):
     
     print(f"==============================")
 
+def handle_ble_read_result(data):
+    """Handle BLE read result events"""
+    conn_handle, value_handle, value = data
+    mac = None
+    
+    # Determine which device the read result is for
+    if conn_handle == PRIMARY_DEVICE['conn_handle']:
+        mac = PRIMARY_DEVICE['mac']
+        print(f"\n=== READ RESULT FROM PRIMARY DEVICE ===")
+    elif conn_handle == SECONDARY_DEVICE['conn_handle']:
+        mac = SECONDARY_DEVICE['mac']
+        print(f"\n=== READ RESULT FROM SECONDARY DEVICE ===")
+    else:
+        print(f"\n=== READ RESULT FROM UNKNOWN DEVICE ===")
+    
+    if mac:
+        print(f"Device MAC: {mac}")
+        print(f"Connection handle: {conn_handle}")
+        print(f"Value handle: {value_handle}")
+        print(f"Value: {ubinascii.hexlify(value).decode('utf-8')}")
+    else:
+        print("No matching device found for read result.")
+    
+    print(f"=======================================")
+
 def ble_irq_handler(event, data):
     print(f"\n=== BLE IRQ EVENT: {event} ===")
     """Handle all BLE IRQ events"""
@@ -235,9 +273,8 @@ def ble_irq_handler(event, data):
             handle_ble_connect(data)
         elif event == _IRQ_PERIPHERAL_DISCONNECT:
             handle_ble_disconnect(data)
-        elif event == _IRQ_GATTC_NOTIFY:
-            # TODO: handle notifications
-            pass
+        elif event == _IRQ_GATTC_READ_RESULT:
+            handle_ble_read_result(data)
         else:
             # Print unknown events for debugging
             print(f"Unknown BLE IRQ event: {event}")
@@ -275,7 +312,7 @@ class MainApp:
         self.event_handler.register_function(connect_wifi, interval=15)
         self.event_handler.register_function(connect_ble, interval=2)  # Try every 2 seconds
         self.event_handler.register_function(debug_status, interval=10)  # Debug every 10 seconds
-        self.event_handler.register_function(read_ble_data, interval=5, name="read_primary_data")
+        self.event_handler.register_function(read_ble_data, interval=1.5, name="read_primary_data")
 
     def run(self):
         """Main run loop - never blocks"""
