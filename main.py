@@ -41,7 +41,7 @@ PRIMARY_DEVICE = {
     "name": "BOOKOO_SC",
     "mac": "d9:5d:10:01:41:7f",
     "services": ['0FFE'],
-    "characteristics":['FF11'],
+    "characteristics":[0xFF11],
     "cmd": ['FF12'],
     "found": False,
     "connected": False,
@@ -55,7 +55,7 @@ SECONDARY_DEVICE = {
     "name": "BOOKOO_EM",
     "mac": "c0:1d:b2:30:a1:78",
     "services": ['0FFF'],
-    "characteristics":['FF02', 'FF03'],
+    "characteristics":[0xFF02, 0xFF03],
     "cmd": ['FF01'],
     "found": False,
     "connected": False,
@@ -161,7 +161,7 @@ def read_ble_data():
     # Primary device
     try:
         print(f"Reading data from characteristic {PRIMARY_DEVICE['characteristics'][0]} on connection handle {PRIMARY_DEVICE['conn_handle']}...")
-        ble.gattc_read(PRIMARY_DEVICE['conn_handle'], PRIMARY_DEVICE['characteristics'][0])
+        ble.gattc_read(int(PRIMARY_DEVICE['conn_handle']), PRIMARY_DEVICE['characteristics'][0])
         time.sleep(0.2)  # Small delay to allow read command to process
         # return {"status": "read_command_sent"}
     except Exception as e:
@@ -171,7 +171,7 @@ def read_ble_data():
     # Secondary device
     try:
         print(f"Reading data from characteristic {SECONDARY_DEVICE['characteristics'][0]} on connection handle {SECONDARY_DEVICE['conn_handle']}...")
-        ble.gattc_read(SECONDARY_DEVICE['conn_handle'], SECONDARY_DEVICE['characteristics'][0])
+        ble.gattc_read(int(SECONDARY_DEVICE['conn_handle']), SECONDARY_DEVICE['characteristics'][0])
         time.sleep(0.2)  # Small delay to allow read command to process
         # return {"status": "read_command_sent"} 
     except Exception as e:
