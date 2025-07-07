@@ -4,6 +4,7 @@ import time
 import bluetooth
 import ubinascii
 import asyncio
+from EventHandler import EventHandler
 
 # wifi setup
 ssid = 'SomewhatPoweredByWiFi'
@@ -116,9 +117,11 @@ def handle_wifi():
         print("Attempting WiFi connection...")
         try:
             wlan.connect(ssid, password)
+            if wlan.isconnected():
+                print("WiFi connected successfully!")
+                print("Network config:", wlan.ifconfig())
         except Exception as e:
             print(f"Failed to connect to WiFi: {e}")
-        await asyncio.sleep(3)
 
 def handle_ble_connect():
     """ Connect to the primary and secondary device BLE device """
@@ -143,8 +146,6 @@ def handle_ble_connect():
             except Exception as e:
                 print(f"Failed to connect to secondary device: {e}")
         
-        await asyncio.sleep(3)  # Wait before retrying
-
 def handle_ble_disconnect(data):
     """
     Handle peripheral disconnection events.
@@ -186,235 +187,34 @@ def ble_irq_handler(event, data):
     except Exception as e:
         print(f"\nError in BLE IRQ handler: {e}")
 
-async def main():
-    """Main async function that runs all tasks concurrently"""
-    # Set up BLE IRQ handler
-    ble.irq(ble_irq_handler)
+class MainApp:
+    def __init__(self):
+        self.event_handler = EventHandler()
     
-    # Create all async tasks
-    tasks = [
-        handle_wifi(),
-        handle_ble_connect(),
-    ]
+    def setup_functions(self):
+        """Setup functions to be called periodically"""
+        self.event_handler.add_function(handle_wifi, interval=10, name='WiFi Handler')
+        self.event_handler.add_function(handle_ble_connect, interval=5, name='BLE Connect Handler')
     
-    # Run all tasks concurrently
-    await asyncio.gather(*tasks)
+    def run(self):
+        """Main run loop - never blocks"""
+        print("Starting event handler...")
+        
+        while True:
+            try:
 
-# Main execution
-if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print("Application stopped by user")
-    except Exception as e:
-        print(f"Application error: {e}")
-        # Optionally restart or handle gracefully
+                # setup the IRQ handler
+                ble.irq(ble_irq_handler)
 
-
-# def handle_scan_result(data):
-#     """Handle scan result events"""
-#     addr_type, addr, adv_type, rssi, adv_data = data
-#     mac = ubinascii.hexlify(addr).decode('utf-8')
-#     mac = ':'.join([mac[i:i+2] for i in range(0, len(mac), 2)])
-    
-#     decoded = decode_adv_data(adv_data)
-#     name = decoded.get('name', '')
-    
-#     # Check if this is one of our target devices
-#     if not PRIMARY_DEVICE['found'] or not PRIMARY_DEVICE['connected']:
-#         # Match by MAC (exact) or name prefix (if name exists)
-#         if mac.lower() == PRIMARY_DEVICE['mac'].lower() or (name and name.startswith(PRIMARY_DEVICE['name'])):
-#             print(f"\nFound primary device: {PRIMARY_DEVICE['name']}")
-#             print(f"MAC: {mac}")
-#             print(f"RSSI: {rssi}dBm")
-            
-#             # Mark as found
-#             PRIMARY_DEVICE['found'] = True
-#             # Try to connect
-#             try:
-#                 print(f"Attempting to connect to primary device {mac}...")
-#                 ble.gap_connect(addr_type, addr)
-#                 print(f"Connection initiated for primary device {mac}.")
-#                 print(f"Attempting to write command to primary device {mac}...")
+                # Run one cycle of the event handler
+                self.event_handler.run_cycle()
                 
-#                 # attach notification for primary device
-#                 try:
-#                     ble.gattc_write(PRIMARY_DEVICE['conn_handle'], 
-#                                     PRIMARY_DEVICE['cmd'][0], 
-#                                     b'\x01')  # Example command, adjust as needed
-#                 except Exception as e:
-#                     print(f"Failed to write command to primary device {mac}: {e}")
-
-#             except Exception as e:
-#                 print(f"Failed to connect to primary device {mac}: {e}")
-
-#     elif PRIMARY_DEVICE['connected'] and (not SECONDARY_DEVICE['found'] or not SECONDARY_DEVICE['connected']):
-#         # Only try to connect to secondary if primary is connected
-#         if mac.lower() == SECONDARY_DEVICE['mac'].lower() or (name and name.startswith(SECONDARY_DEVICE['name'])):
-#             print(f"\nFound secondary device: {SECONDARY_DEVICE['name']}")
-#             print(f"MAC: {mac}")
-#             print(f"RSSI: {rssi}dBm")
-            
-#             # Mark as found
-#             SECONDARY_DEVICE['found'] = True
-#             # Try to connect
-#             try:
-#                 print(f"Attempting to connect to secondary device {mac}...")
-#                 ble.gap_connect(addr_type, addr)
-#             except Exception as e:
-#                 print(f"Failed to connect to secondary device {mac}: {e}")
-    
-#     elif PRIMARY_DEVICE['connected'] and SECONDARY_DEVICE['connected']:
-#         print("\nBoth target devices found and connected. Stopping scan.")
-#         ble.gap_scan(None)  # Stop scanning
-
-# def handle_scan_done():
-#     """Handle scan completion"""
-#     print("\nScan complete. Waiting before next scan...")
-
-# def handle_peripheral_connect(data):
-#     """Handle peripheral connection events"""
-#     conn_handle, addr_type, addr = data
-#     mac = ubinascii.hexlify(addr).decode('utf-8')
-#     mac = ':'.join([mac[i:i+2] for i in range(0, len(mac), 2)])
-    
-#     # Determine which device connected
-#     if mac.lower() == PRIMARY_DEVICE['mac'].lower():
-#         PRIMARY_DEVICE['connected'] = True
-#         PRIMARY_DEVICE['conn_handle'] = conn_handle
-#         print(f"\nPrimary device connected successfully!")
-#         print(f"Connection handle: {conn_handle}")
-#     elif mac.lower() == SECONDARY_DEVICE['mac'].lower():
-#         SECONDARY_DEVICE['connected'] = True
-#         SECONDARY_DEVICE['conn_handle'] = conn_handle
-#         print(f"\nSecondary device connected successfully!")
-#         print(f"Connection handle: {conn_handle}")
-#     else:
-#         print(f"\nUnknown device connected: {mac}")
-
-
-
-# def handle_notify(data):
-#     """Handle notification data from devices"""
-#     conn_handle, value_handle, notify_data = data
-    
-#     try:
-#         if conn_handle == PRIMARY_DEVICE['conn_handle']:
-#             # Parse weight data
-#             weight, battery = parse_weight_data(notify_data)
-#             if weight is not None:
-#                 PRIMARY_DEVICE['weight'] = weight
-#                 PRIMARY_DEVICE['battery_level'] = battery
-#                 # latest_readings['weight'] = weight
-#                 # latest_readings['weight_battery'] = battery
-#                 # latest_readings['timestamp'] = time.time()
-#                 print(f"Weight: {weight:.2f} kg, Battery: {battery}%")
+                # Small sleep to prevent busy waiting
+                time.sleep(0.01)  # 10ms sleep
                 
-#         elif conn_handle == SECONDARY_DEVICE['conn_handle']:
-#             # Parse pressure data
-#             pressure, battery = parse_pressure_data(notify_data)
-#             if pressure is not None:
-#                 SECONDARY_DEVICE['pressure'] = pressure
-#                 SECONDARY_DEVICE['battery_level'] = battery
-#                 # latest_readings['pressure'] = pressure
-#                 # latest_readings['pressure_battery'] = battery
-#                 # latest_readings['timestamp'] = time.time()
-#                 print(f"Pressure: {pressure:.2f} units, Battery: {battery}%")
-                
-#     except Exception as e:
-#         print(f"Error parsing notification data: {e}")
-
-# def scan_callback(event, data):
-#     """Legacy scan callback for debugging (kept for compatibility)"""
-#     try:
-#         if event == _IRQ_SCAN_RESULT:
-#             addr_type, addr, adv_type, rssi, adv_data = data
-#             decoded = decode_adv_data(adv_data)
-            
-#             # Format MAC address
-#             mac = ubinascii.hexlify(addr).decode('utf-8')
-#             mac = ':'.join([mac[i:i+2] for i in range(0, len(mac), 2)])
-            
-#             print("\nFound device:")
-#             print(f"  MAC: {mac}")
-#             print(f"  Type: {addr_type}, Adv Type: {adv_type}, RSSI: {rssi}dBm")
-#             if decoded['name']:
-#                 print(f"  Name: {decoded['name']}")
-#             if decoded['services']:
-#                 print(f"  Services: {decoded['services']}")
-#             if decoded['manufacturer']:
-#                 print(f"  Manufacturer Data: {decoded['manufacturer']}")
-#             if decoded['tx_power'] is not None:
-#                 print(f"  TX Power: {decoded['tx_power']}dBm")
-#             print(f"  Raw Data: {decoded['raw']}")
-            
-#         elif event == _IRQ_SCAN_DONE:
-#             print("\nScan complete. Waiting before next scan...")
-#     except Exception as e:
-#         print(f"\nError in callback: {e}")
-
-# def parse_weight_data(data):
-#     """Parse weight data from BookooScale (20-byte format)"""
-#     if len(data) == 20:
-#         # Extract battery level from byte 13
-#         battery_level = data[13]
-        
-#         # Extract weight from bytes 7, 8, 9 (24-bit integer)
-#         weight = (
-#             (data[7] << 16) +
-#             (data[8] << 8) +
-#             data[9]
-#         )
-        
-#         # Check sign byte (byte 6)
-#         if data[6] == 45:  # 45 is ASCII for '-'
-#             weight = weight * -1
-        
-#         # Convert to final units (divide by 100)
-#         weight_kg = weight / 100
-        
-#         return weight_kg, battery_level
-#     return None, None
-
-# def parse_pressure_data(data):
-#     """Parse pressure data from BookooPressure sensor (10-byte format)"""
-#     if len(data) == 10:
-#         # Extract pressure from bytes 4 and 5 (16-bit value)
-#         pressure_raw = (data[4] << 8) + data[5]
-        
-#         # Convert to final units (divide by 100)
-#         pressure = pressure_raw / 100
-        
-#         # Note: Battery level information is not available in the pressure data
-#         # from the TypeScript implementation - only pressure readings
-#         battery_level = None
-        
-#         return pressure, battery_level
-#     return None, None
-
-# # main forever loop
-# while True:
-#     while not wlan.isconnected():
-#         print("Attempting WiFi connection...")
-#         time.sleep(1)
-
-#     if wlan.isconnected():
-#         print("\nWiFi Connected!")
-#         print("Network config:", wlan.ifconfig())
-
-#         # Scan for bluetooth devices
-#         print("\nScanning for Bluetooth devices...")
-#         print(f"Primary device connected: {PRIMARY_DEVICE['connected']}")
-#         print(f"Secondary device connected: {SECONDARY_DEVICE['connected']}")
-        
-#         # Set up the IRQ handler for all BLE events
-#         ble.irq(ble_irq_handler)
-
-#         # Start scanning
-#         ble.gap_scan(5000, 30000, 30000)  # Scan for 5 seconds, duty cycle of 0.03
-        
-#         # Start the asyncio event loop to handle data fetching
-#         # asyncio.run(get_data())
-
-#         # Wait for scan to complete before starting a new one
-#         time.sleep(7)  # Wait longer than the scan duration
+            except KeyboardInterrupt:
+                print("Stopping...")
+                break
+            except Exception as e:
+                print(f"Main loop error: {e}")
+                time.sleep(1)  # Wait before continuing

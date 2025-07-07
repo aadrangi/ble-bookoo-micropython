@@ -1,3 +1,5 @@
+import time
+
 class EventHandler:
     def __init__(self):
         self.functions = []
