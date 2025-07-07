@@ -171,11 +171,6 @@ def handle_ble_connect(data):
         PRIMARY_DEVICE['connected'] = True
         PRIMARY_DEVICE['conn_handle'] = conn_handle
         print(f"Primary device handle: {PRIMARY_DEVICE['conn_handle']}")
-        print(f"Initiating a gap scan to force a scan event before trying to connect secondary device...")
-        try:
-            ble.gap_scan(1000, 30000, 30000)  # Scan for 2 seconds
-        except Exception as e:
-            print(f"Error starting scan: {e}")
     elif mac.lower() == SECONDARY_DEVICE['mac'].lower():
         print(f"*** SECONDARY DEVICE CONNECTED! ***")
         SECONDARY_DEVICE['connected'] = True
@@ -224,11 +219,7 @@ def handle_ble_disconnect(data):
 def ble_irq_handler(event, data):
     """Handle all BLE IRQ events"""
     try:
-        if event == _IRQ_SCAN_RESULT:
-            pass
-        elif event == _IRQ_SCAN_DONE:
-            print("BLE scan completed")
-        elif event == _IRQ_PERIPHERAL_CONNECT:
+        if event == _IRQ_PERIPHERAL_CONNECT:
             handle_ble_connect(data)
         elif event == _IRQ_PERIPHERAL_DISCONNECT:
             handle_ble_disconnect(data)
