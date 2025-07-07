@@ -217,6 +217,7 @@ def handle_ble_disconnect(data):
     print(f"==============================")
 
 def ble_irq_handler(event, data):
+    print(f"\n=== BLE IRQ EVENT: {event} ===")
     """Handle all BLE IRQ events"""
     try:
         if event == _IRQ_PERIPHERAL_CONNECT:
