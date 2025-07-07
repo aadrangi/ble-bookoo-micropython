@@ -110,7 +110,7 @@ def decode_adv_data(adv_data):
     
     return result
 
-async def handle_wifi():
+def handle_wifi():
     """Handle WiFi connection and scanning for BLE devices"""
     while not wlan.isconnected():
         print("Attempting WiFi connection...")
@@ -120,7 +120,7 @@ async def handle_wifi():
             print(f"Failed to connect to WiFi: {e}")
         await asyncio.sleep(3)
 
-async def handle_ble_connect():
+def handle_ble_connect():
     """ Connect to the primary and secondary device BLE device """
     while not PRIMARY_DEVICE['connected'] or not SECONDARY_DEVICE['connected']:
         if not PRIMARY_DEVICE['connected']:
