@@ -115,6 +115,7 @@ def connect_ble():
             PRIMARY_DEVICE['last_attempt'] = current_time
             
             print(f"Connection command sent for PRIMARY device")
+            time.sleep(0.2)  # Small delay to allow connection command to process
             return {"status": "connecting_primary"}
             
         except Exception as e:
@@ -139,6 +140,7 @@ def connect_ble():
             SECONDARY_DEVICE['last_attempt'] = current_time
             
             print(f"Connection command sent for SECONDARY device")
+            time.sleep(0.2)  # Small delay to allow connection command to process
             return {"status": "connecting_secondary"}
             
         except Exception as e:
@@ -177,6 +179,7 @@ def handle_ble_connect(data):
     else:
         print(f"*** UNKNOWN DEVICE CONNECTED: {mac} ***")
     
+    time.sleep(0.2)  # Small delay to allow connection to stabilize
     print(f"============================")
 
 def handle_ble_disconnect(data):
