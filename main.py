@@ -290,6 +290,8 @@ def handle_ble_disconnect(data):
 def handle_ble_read_result(data):
     """Handle BLE read result events"""
     conn_handle, value_handle, value = data
+    print(f"\n=== BLE READ RESULT EVENT ===")
+    print(f"value is {value}")
     mac = None
     
     # Determine which device the read result is for
