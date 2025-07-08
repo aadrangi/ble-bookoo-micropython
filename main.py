@@ -40,9 +40,9 @@ _IRQ_GATTC_INDICATE = 19
 PRIMARY_DEVICE = {
     "name": "BOOKOO_SC",
     "mac": "d9:5d:10:01:41:7f",
-    "services": ['0FFE'],
+    "services": [0X0FFE],
     "characteristics":[0xFF11],
-    "cmd": ['FF12'],
+    "cmd": [0xFF12],
     "found": False,
     "connected": False,
     "conn_handle": None,
@@ -54,7 +54,7 @@ PRIMARY_DEVICE = {
 SECONDARY_DEVICE = {
     "name": "BOOKOO_EM",
     "mac": "c0:1d:b2:30:a1:78",
-    "services": ['0FFF'],
+    "services": [0X0FFF],
     "characteristics":[0xFF02, 0xFF03],
     "cmd": ['FF01'],
     "found": False,
@@ -154,6 +154,30 @@ def connect_ble():
         return {"status": "all_connected"}
     
     return {"status": "unknown_state"}
+
+def discover_characteristics():
+    """Discover characteristics for connected devices"""
+    if PRIMARY_DEVICE['connected'] and PRIMARY_DEVICE['conn_handle'] is not None:
+        try:
+            print(f"Discovering characteristics for PRIMARY device {PRIMARY_DEVICE['mac']}...")
+            ble.gattc_discover_characteristics(int(PRIMARY_DEVICE['conn_handle']), PRIMARY_DEVICE['services'][0])
+            time.sleep(0.2)  # Small delay to allow discovery command to process
+            return {"status": "discovering_primary"}
+        except Exception as e:
+            print(f"Failed to discover characteristics for PRIMARY device: {e}")
+            return {"error": f"primary_discovery_failed: {e}"}
+    
+    if SECONDARY_DEVICE['connected'] and SECONDARY_DEVICE['conn_handle'] is not None:
+        try:
+            print(f"Discovering characteristics for SECONDARY device {SECONDARY_DEVICE['mac']}...")
+            ble.gattc_discover_characteristics(int(SECONDARY_DEVICE['conn_handle']), SECONDARY_DEVICE['services'][0])
+            time.sleep(0.2)  # Small delay to allow discovery command to process
+            return {"status": "discovering_secondary"}
+        except Exception as e:
+            print(f"Failed to discover characteristics for SECONDARY device: {e}")
+            return {"error": f"secondary_discovery_failed: {e}"}
+    
+    return {"status": "no_device_connected"}
 
 def read_ble_data():
     """Read data from a BLE characteristic"""
@@ -327,6 +351,29 @@ def handle_ble_read_result(data):
     
     print(f"=======================================")
 
+def handle_ble_discovvered_characteristics(data):
+    """Handle discovered characteristics events"""
+    conn_handle, start_handle, end_handle, uuid = data
+    print(f"\n=== BLE DISCOVERED CHARACTERISTICS EVENT ===")
+    
+    # Convert UUID to string for display
+    uuid_str = ubinascii.hexlify(uuid).decode('utf-8')
+    
+    # Determine which device the characteristics belong to
+    if conn_handle == PRIMARY_DEVICE['conn_handle']:
+        print(f"Discovered characteristics for PRIMARY device {PRIMARY_DEVICE['mac']}:")
+        PRIMARY_DEVICE['found'] = True
+        print(f"UUID: {uuid_str}, Start Handle: {start_handle}, End Handle: {end_handle}")
+    elif conn_handle == SECONDARY_DEVICE['conn_handle']:
+        print(f"Discovered characteristics for SECONDARY device {SECONDARY_DEVICE['mac']}:")
+        SECONDARY_DEVICE['found'] = True
+        print(f"UUID: {uuid_str}, Start Handle: {start_handle}, End Handle: {end_handle}")
+    else:
+        print(f"Discovered characteristics for UNKNOWN device:")
+        print(f"UUID: {uuid_str}, Start Handle: {start_handle}, End Handle: {end_handle}")
+    
+    print(f"============================================")
+
 def ble_irq_handler(event, data):
     print(f"\n=== BLE IRQ EVENT: {event} ===")
     """Handle all BLE IRQ events"""
@@ -337,6 +384,8 @@ def ble_irq_handler(event, data):
             handle_ble_disconnect(data)
         elif event == _IRQ_GATTC_READ_DONE:
             handle_ble_read_result(data)
+        elif event == _IRQ_GATTC_CHARACTERISTIC_RESULT:
+            handle_ble_discovvered_characteristics(data)
         else:
             # Print unknown events for debugging
             print(f"Unknown BLE IRQ event: {event}")
@@ -374,7 +423,8 @@ class MainApp:
         self.event_handler.register_function(connect_wifi, interval=15)
         self.event_handler.register_function(connect_ble, interval=2)  # Try every 2 seconds
         self.event_handler.register_function(debug_status, interval=10)  # Debug every 10 seconds
-        self.event_handler.register_function(read_ble_data, interval=1.5, name="read_primary_data")
+        self.event_handler.register_function(discover_characteristics, interval=0.5)
+        self.event_handler.register_function(read_ble_data, interval=1.5)
 
     def run(self):
         """Main run loop - never blocks"""
