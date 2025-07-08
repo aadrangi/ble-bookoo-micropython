@@ -180,7 +180,9 @@ def read_ble_data():
     
 def parse_weight_data(data):
     """Parse weight data from BookooScale (20-byte format)"""
-    if len(data) == 20:
+    # if len(data) == 20:
+    try:
+
         # Extract battery level from byte 13
         battery_level = data[13]
         
@@ -199,11 +201,14 @@ def parse_weight_data(data):
         weight_kg = weight / 100
         
         return weight_kg, battery_level
+    except Exception as e:
+        print(f"failed to parse weight data: {e}")
     return None, None
 
 def parse_pressure_data(data):
     """Parse pressure data from BookooPressure sensor (10-byte format)"""
-    if len(data) == 10:
+    # if len(data) == 10:
+    try:
         # Extract pressure from bytes 4 and 5 (16-bit value)
         pressure_raw = (data[4] << 8) + data[5]
         
@@ -215,6 +220,9 @@ def parse_pressure_data(data):
         battery_level = None
         
         return pressure, battery_level
+    except Exception as e:
+        print(f"failed to parse pressure data: {e}")
+        return None, None
     return None, None
 
 
