@@ -40,9 +40,9 @@ _IRQ_GATTC_INDICATE = 19
 PRIMARY_DEVICE = {
     "name": "BOOKOO_SC",
     "mac": "d9:5d:10:01:41:7f",
-    "services": [0X0FFE],
-    "characteristics":[0xFF11],
-    "cmd": [0xFF12],
+    "services": {0X0FFE:None},
+    "characteristics":{0xFF11:None},
+    "cmd": {0xFF12:None},
     "found": False,
     "connected": False,
     "conn_handle": None,
@@ -54,9 +54,9 @@ PRIMARY_DEVICE = {
 SECONDARY_DEVICE = {
     "name": "BOOKOO_EM",
     "mac": "c0:1d:b2:30:a1:78",
-    "services": [0X0FFF],
-    "characteristics":[0xFF02, 0xFF03],
-    "cmd": ['FF01'],
+    "services": {0X0FFF,None},
+    "characteristics":{0xFF02:None, 0xFF03:None},
+    "cmd": {0xFF01:None},
     "found": False,
     "connected": False,
     "conn_handle": None,
@@ -402,25 +402,31 @@ def handle_ble_discovered_services(data):
 
 def handle_ble_discovered_characteristics(data):
     """Handle discovered characteristics events"""
-    # conn_handle, start_handle, end_handle, uuid = data
+    conn_handle, value_handle, start_handle, end_handle, uuid = data
     print(f"\n=== BLE DISCOVERED CHARACTERISTICS EVENT ===")
-    
+
+
     # Convert UUID to string for display
     # uuid_str = ubinascii.hexlify(uuid).decode('utf-8')
-    print(f"all data: {data}")
     # Determine which device the characteristics belong to
-    # if conn_handle == PRIMARY_DEVICE['conn_handle']:
-    #     print(f"Discovered characteristics for PRIMARY device {PRIMARY_DEVICE['mac']}:")
-    #     PRIMARY_DEVICE['found'] = True
-    #     print(f"All data: {data}")
-    #     # print(f"UUID: {uuid_str}, Start Handle: {start_handle}, End Handle: {end_handle}")
-    # elif conn_handle == SECONDARY_DEVICE['conn_handle']:
-    #     print(f"Discovered characteristics for SECONDARY device {SECONDARY_DEVICE['mac']}:")
-    #     SECONDARY_DEVICE['found'] = True
-    #     # print(f"UUID: {uuid_str}, Start Handle: {start_handle}, End Handle: {end_handle}")
-    # else:
-    #     print(f"Discovered characteristics for UNKNOWN device:")
-    #     # print(f"UUID: {uuid_str}, Start Handle: {start_handle}, End Handle: {end_handle}")
+    if conn_handle == PRIMARY_DEVICE['conn_handle']:
+        print(f"Discovered characteristics for PRIMARY device {PRIMARY_DEVICE['mac']}:")
+        if uuid in PRIMARY_DEVICE['characteristics'].keys():
+            print(f"Located data for characteristic {uuid}")
+            print(f"Assigning value handle {value_handle} to characteristic")
+            PRIMARY_DEVICE['characteristics'][uuid] = value_handle
+        else:
+            print(f"UUID {uuid} for {PRIMARY_DEVICE['name']} does not have a known characteristic")
+    elif conn_handle == SECONDARY_DEVICE['conn_handle']:
+        print(f"Discovered characteristics for SECONDARY device {SECONDARY_DEVICE['mac']}:")
+        if uuid in SECONDARY_DEVICE['characteristics'].keys():
+            print(f"Located data for characteristic {uuid}")
+            print(f"Assigning value handle {value_handle} to characteristic")
+            SECONDARY_DEVICE['characteristics'][uuid] = value_handle
+        else:
+            print(f"UUID {uuid} for {SECONDARY_DEVICE['name']} does not have a known characteristic")
+    else:
+        print(f"Discovered characteristics for UNKNOWN device:")
     
     print(f"============================================")
 
@@ -435,8 +441,8 @@ def ble_irq_handler(event, data):
             handle_ble_disconnect(data)
         elif event == _IRQ_GATTC_READ_DONE:
             handle_ble_read_result(data)
-        elif event == _IRQ_GATTC_SERVICE_RESULT:
-            handle_ble_discovered_services(data)
+        # elif event == _IRQ_GATTC_SERVICE_RESULT:
+        #     handle_ble_discovered_services(data)
         elif event == _IRQ_GATTC_CHARACTERISTIC_RESULT:
             handle_ble_discovered_characteristics(data)
         else:
@@ -476,7 +482,7 @@ class MainApp:
         self.event_handler.register_function(connect_wifi, interval=15)
         self.event_handler.register_function(connect_ble, interval=2)  # Try every 2 seconds
         self.event_handler.register_function(debug_status, interval=10)  # Debug every 10 seconds
-        self.event_handler.register_function(discover_services, interval=1.0)
+        # self.event_handler.register_function(discover_services, interval=1.0)
         self.event_handler.register_function(discover_characteristics, interval=0.5)
         self.event_handler.register_function(read_ble_data, interval=1.5)
 
