@@ -3,6 +3,7 @@ import network
 import time
 import bluetooth
 import ubinascii
+import struct
 from EventHandler import EventHandler
 
 # global wifi info
@@ -208,24 +209,20 @@ def read_ble_data():
 
     # Primary device
     try:
-        print(f"Reading data from characteristic {PRIMARY_DEVICE['characteristics'][0]} on connection handle {PRIMARY_DEVICE['conn_handle']}...")
-        ble.gattc_read(int(PRIMARY_DEVICE['conn_handle']), PRIMARY_DEVICE['characteristics'][0])
+        print(f"Reading data from characteristic {list(PRIMARY_DEVICE['characteristics'].keys())[0]} on connection handle {PRIMARY_DEVICE['conn_handle']}...")
+        ble.gattc_read(int(PRIMARY_DEVICE['conn_handle']), PRIMARY_DEVICE['characteristics'][0xFF11])
         time.sleep(0.2)  # Small delay to allow read command to process
-        # return {"status": "read_command_sent"}
     except Exception as e:
-        print(f"Failed to read from characteristic {PRIMARY_DEVICE['characteristics'][0]}: {e}")
-        # return {"error": f"read_failed: {e}"}
+        print(f"Failed to read from characteristic {list(PRIMARY_DEVICE['characteristics'].keys())[0]}: {e}")
 
     # Secondary device
     try:
-        print(f"Reading data from characteristic {SECONDARY_DEVICE['characteristics'][0]} on connection handle {SECONDARY_DEVICE['conn_handle']}...")
-        ble.gattc_read(int(SECONDARY_DEVICE['conn_handle']), SECONDARY_DEVICE['characteristics'][0])
+        print(f"Reading data from characteristic {list(SECONDARY_DEVICE['characteristics'].keys())[0]} on connection handle {SECONDARY_DEVICE['conn_handle']}...")
+        ble.gattc_read(int(SECONDARY_DEVICE['conn_handle']), SECONDARY_DEVICE['characteristics'][0xFF02])
         time.sleep(0.2)  # Small delay to allow read command to process
-        # return {"status": "read_command_sent"} 
     except Exception as e:
-        print(f"Failed to read from characteristic {SECONDARY_DEVICE['characteristics'][0]}: {e}")
-        # return {"error": f"read_failed: {e}"}
-    
+        print(f"Failed to read from characteristic {list(SECONDARY_DEVICE['characteristics'].keys())[0]}: {e}")
+
 def parse_weight_data(data):
     """Parse weight data from BookooScale (20-byte format)"""
     # if len(data) == 20:
@@ -339,7 +336,8 @@ def handle_ble_read_result(data):
     """Handle BLE read result events"""
     conn_handle, value_handle, value = data
     print(f"\n=== BLE READ RESULT EVENT ===")
-    print(f"value is {value}")
+    print(f"All data: {data}")
+    # print(f"length of bits returned: {len(value)}")
     mac = None
     
     # Determine which device the read result is for
@@ -397,30 +395,35 @@ def handle_ble_discovered_services(data):
     # else:
     #     print(f"Discovered services for UNKNOWN device:")
     #     # print(f"UUID: {uuid_str}, Start Handle: {start_handle}, End Handle: {end_handle}")
-    
-    print(f"===========================================")
+
+    print(f"==============================")
 
 def handle_ble_discovered_characteristics(data):
     """Handle discovered characteristics events"""
-    conn_handle, value_handle, start_handle, end_handle, uuid = data
+    conn_handle, _, value_handle, _, uuid = data
     print(f"\n=== BLE DISCOVERED CHARACTERISTICS EVENT ===")
 
+    # decode the uuid
+    uuid = struct.unpack('<H', uuid)[0]  # Assuming UUID is a 16-bit value
 
     # Convert UUID to string for display
     # uuid_str = ubinascii.hexlify(uuid).decode('utf-8')
     # Determine which device the characteristics belong to
     if conn_handle == PRIMARY_DEVICE['conn_handle']:
         print(f"Discovered characteristics for PRIMARY device {PRIMARY_DEVICE['mac']}:")
-        if uuid in PRIMARY_DEVICE['characteristics'].keys():
+        # print(f"Attempting to discover attributes of ble uuid class: {uuid.__dict__}")
+        if uuid in list(PRIMARY_DEVICE['characteristics'].keys()):
             print(f"Located data for characteristic {uuid}")
+            print(f"all data below for the characteristic: {data}")
             print(f"Assigning value handle {value_handle} to characteristic")
             PRIMARY_DEVICE['characteristics'][uuid] = value_handle
         else:
             print(f"UUID {uuid} for {PRIMARY_DEVICE['name']} does not have a known characteristic")
     elif conn_handle == SECONDARY_DEVICE['conn_handle']:
         print(f"Discovered characteristics for SECONDARY device {SECONDARY_DEVICE['mac']}:")
-        if uuid in SECONDARY_DEVICE['characteristics'].keys():
+        if uuid in list(SECONDARY_DEVICE['characteristics'].keys()):
             print(f"Located data for characteristic {uuid}")
+            print(f"all data below for the characteristic: {data}")
             print(f"Assigning value handle {value_handle} to characteristic")
             SECONDARY_DEVICE['characteristics'][uuid] = value_handle
         else:
