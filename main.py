@@ -155,12 +155,36 @@ def connect_ble():
     
     return {"status": "unknown_state"}
 
+def discover_services():
+    """Discover services for connected devices"""
+    if PRIMARY_DEVICE['connected'] and PRIMARY_DEVICE['conn_handle'] is not None:
+        try:
+            print(f"Discovering services for PRIMARY device {PRIMARY_DEVICE['mac']}...")
+            ble.gattc_discover_services(int(PRIMARY_DEVICE['conn_handle']))
+            time.sleep(0.2)  # Small delay to allow discovery command to process
+            return {"status": "discovering_primary"}
+        except Exception as e:
+            print(f"Failed to discover services for PRIMARY device: {e}")
+            return {"error": f"primary_service_discovery_failed: {e}"}
+    
+    if SECONDARY_DEVICE['connected'] and SECONDARY_DEVICE['conn_handle'] is not None:
+        try:
+            print(f"Discovering services for SECONDARY device {SECONDARY_DEVICE['mac']}...")
+            ble.gattc_discover_services(int(SECONDARY_DEVICE['conn_handle']))
+            time.sleep(0.2)  # Small delay to allow discovery command to process
+            return {"status": "discovering_secondary"}
+        except Exception as e:
+            print(f"Failed to discover services for SECONDARY device: {e}")
+            return {"error": f"secondary_service_discovery_failed: {e}"}
+    
+    return {"status": "no_device_connected"}
+
 def discover_characteristics():
     """Discover characteristics for connected devices"""
     if PRIMARY_DEVICE['connected'] and PRIMARY_DEVICE['conn_handle'] is not None:
         try:
             print(f"Discovering characteristics for PRIMARY device {PRIMARY_DEVICE['mac']}...")
-            ble.gattc_discover_characteristics(int(PRIMARY_DEVICE['conn_handle']), PRIMARY_DEVICE['services'][0])
+            ble.gattc_discover_characteristics(int(PRIMARY_DEVICE['conn_handle']), 0x001, 0xffff)  # Discover all characteristics
             time.sleep(0.2)  # Small delay to allow discovery command to process
             return {"status": "discovering_primary"}
         except Exception as e:
@@ -170,7 +194,7 @@ def discover_characteristics():
     if SECONDARY_DEVICE['connected'] and SECONDARY_DEVICE['conn_handle'] is not None:
         try:
             print(f"Discovering characteristics for SECONDARY device {SECONDARY_DEVICE['mac']}...")
-            ble.gattc_discover_characteristics(int(SECONDARY_DEVICE['conn_handle']), SECONDARY_DEVICE['services'][0])
+            ble.gattc_discover_characteristics(int(SECONDARY_DEVICE['conn_handle']), 0x001, 0xffff)  # Discover all characteristics
             time.sleep(0.2)  # Small delay to allow discovery command to process
             return {"status": "discovering_secondary"}
         except Exception as e:
@@ -345,34 +369,61 @@ def handle_ble_read_result(data):
         print(f"Device MAC: {mac}")
         print(f"Connection handle: {conn_handle}")
         print(f"Value handle: {value_handle}")
+        print(f"Value: {value}")
         print(f"Value: {ubinascii.hexlify(value).decode('utf-8')}")
     else:
         print("No matching device found for read result.")
     
     print(f"=======================================")
 
-def handle_ble_discovvered_characteristics(data):
+def handle_ble_discovered_services(data):
+    """Handle discovered services events"""
+    # conn_handle, start_handle, end_handle, uuid = data
+    print(f"\n=== BLE DISCOVERED SERVICES EVENT ===")
+    
+    # Convert UUID to string for display
+    # uuid_str = ubinascii.hexlify(uuid).decode('utf-8')
+    print(f"all data: {data}")
+    # Determine which device the service belongs to
+    # if conn_handle == PRIMARY_DEVICE['conn_handle']:
+    #     print(f"Discovered services for PRIMARY device {PRIMARY_DEVICE['mac']}:")
+    #     PRIMARY_DEVICE['found'] = True
+    #     print(f"All data: {data}")
+    #     # print(f"UUID: {uuid_str}, Start Handle: {start_handle}, End Handle: {end_handle}")
+    # elif conn_handle == SECONDARY_DEVICE['conn_handle']:
+    #     print(f"Discovered services for SECONDARY device {SECONDARY_DEVICE['mac']}:")
+    #     SECONDARY_DEVICE['found'] = True
+    #     # print(f"UUID: {uuid_str}, Start Handle: {start_handle}, End Handle: {end_handle}")
+    # else:
+    #     print(f"Discovered services for UNKNOWN device:")
+    #     # print(f"UUID: {uuid_str}, Start Handle: {start_handle}, End Handle: {end_handle}")
+    
+    print(f"===========================================")
+
+def handle_ble_discovered_characteristics(data):
     """Handle discovered characteristics events"""
-    conn_handle, start_handle, end_handle, uuid = data
+    # conn_handle, start_handle, end_handle, uuid = data
     print(f"\n=== BLE DISCOVERED CHARACTERISTICS EVENT ===")
     
     # Convert UUID to string for display
-    uuid_str = ubinascii.hexlify(uuid).decode('utf-8')
-    
+    # uuid_str = ubinascii.hexlify(uuid).decode('utf-8')
+    print(f"all data: {data}")
     # Determine which device the characteristics belong to
-    if conn_handle == PRIMARY_DEVICE['conn_handle']:
-        print(f"Discovered characteristics for PRIMARY device {PRIMARY_DEVICE['mac']}:")
-        PRIMARY_DEVICE['found'] = True
-        print(f"UUID: {uuid_str}, Start Handle: {start_handle}, End Handle: {end_handle}")
-    elif conn_handle == SECONDARY_DEVICE['conn_handle']:
-        print(f"Discovered characteristics for SECONDARY device {SECONDARY_DEVICE['mac']}:")
-        SECONDARY_DEVICE['found'] = True
-        print(f"UUID: {uuid_str}, Start Handle: {start_handle}, End Handle: {end_handle}")
-    else:
-        print(f"Discovered characteristics for UNKNOWN device:")
-        print(f"UUID: {uuid_str}, Start Handle: {start_handle}, End Handle: {end_handle}")
+    # if conn_handle == PRIMARY_DEVICE['conn_handle']:
+    #     print(f"Discovered characteristics for PRIMARY device {PRIMARY_DEVICE['mac']}:")
+    #     PRIMARY_DEVICE['found'] = True
+    #     print(f"All data: {data}")
+    #     # print(f"UUID: {uuid_str}, Start Handle: {start_handle}, End Handle: {end_handle}")
+    # elif conn_handle == SECONDARY_DEVICE['conn_handle']:
+    #     print(f"Discovered characteristics for SECONDARY device {SECONDARY_DEVICE['mac']}:")
+    #     SECONDARY_DEVICE['found'] = True
+    #     # print(f"UUID: {uuid_str}, Start Handle: {start_handle}, End Handle: {end_handle}")
+    # else:
+    #     print(f"Discovered characteristics for UNKNOWN device:")
+    #     # print(f"UUID: {uuid_str}, Start Handle: {start_handle}, End Handle: {end_handle}")
     
     print(f"============================================")
+
 
 def ble_irq_handler(event, data):
     print(f"\n=== BLE IRQ EVENT: {event} ===")
@@ -384,8 +435,10 @@ def ble_irq_handler(event, data):
             handle_ble_disconnect(data)
         elif event == _IRQ_GATTC_READ_DONE:
             handle_ble_read_result(data)
+        elif event == _IRQ_GATTC_SERVICE_RESULT:
+            handle_ble_discovered_services(data)
         elif event == _IRQ_GATTC_CHARACTERISTIC_RESULT:
-            handle_ble_discovvered_characteristics(data)
+            handle_ble_discovered_characteristics(data)
         else:
             # Print unknown events for debugging
             print(f"Unknown BLE IRQ event: {event}")
@@ -423,6 +476,7 @@ class MainApp:
         self.event_handler.register_function(connect_wifi, interval=15)
         self.event_handler.register_function(connect_ble, interval=2)  # Try every 2 seconds
         self.event_handler.register_function(debug_status, interval=10)  # Debug every 10 seconds
+        self.event_handler.register_function(discover_services, interval=1.0)
         self.event_handler.register_function(discover_characteristics, interval=0.5)
         self.event_handler.register_function(read_ble_data, interval=1.5)
 
