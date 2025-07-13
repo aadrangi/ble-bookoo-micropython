@@ -1,7 +1,7 @@
 # main.py - Direct connection debug version
 import network
 import time
-import bluetooth
+import ubluetooth
 import ubinascii
 import struct
 from EventHandler import EventHandler
@@ -13,7 +13,7 @@ wlan = network.WLAN(network.STA_IF)
 wlan.active(True)
 
 # global bluetooth setup
-ble = bluetooth.BLE()
+ble = ubluetooth.BLE()
 ble.active(True)
 
 # global BLE IRQ events
@@ -185,7 +185,7 @@ def discover_characteristics():
     if PRIMARY_DEVICE['connected'] and PRIMARY_DEVICE['conn_handle'] is not None:
         try:
             print(f"Discovering characteristics for PRIMARY device {PRIMARY_DEVICE['mac']}...")
-            ble.gattc_discover_characteristics(int(PRIMARY_DEVICE['conn_handle']), 0x001, 0xffff)  # Discover all characteristics
+            ble.gattc_discover_characte ristics(int(PRIMARY_DEVICE['conn_handle']), 0x001, 0xffff)  # Discover all characteristics
             time.sleep(0.2)  # Small delay to allow discovery command to process
             return {"status": "discovering_primary"}
         except Exception as e:
@@ -241,6 +241,26 @@ def write_indication_request():
     except Exception as e:
         print(f"Failed to write indication request for characteristic {list(SECONDARY_DEVICE['characteristics'].keys())[0]}: {e}")
 
+def enable_notifications():
+    """Enable notifications for BLE characteristics"""
+    # Primary device
+    try:
+        print(f"Enabling notifications for characteristic {list(PRIMARY_DEVICE['characteristics'].keys())[0]} on connection handle {PRIMARY_DEVICE['conn_handle']}...")
+        cccd_handle = PRIMARY_DEVICE['characteristics'][0xFF11] + 1  # Assuming CCCD 
+        ble.gattc_write(int(PRIMARY_DEVICE['conn_handle']), cccd_handle, b'\x01\x00', 1)  # 0x01 for notification
+        time.sleep(0.2)  # Small delay to allow notification command to process
+    except Exception as e:
+        print(f"Failed to enable notifications for characteristic {list(PRIMARY_DEVICE['characteristics'].keys())[0]}: {e}")
+
+    # Secondary device
+    try:
+        print(f"Enabling notifications for characteristic {list(SECONDARY_DEVICE['characteristics'].keys())[0]} on connection handle {SECONDARY_DEVICE['conn_handle']}...")
+        cccd_handle = PRIMARY_DEVICE['characteristics'][0xFF11] + 1  # Assuming CCCD
+        ble.gattc_write(int(SECONDARY_DEVICE['conn_handle']), cccd_handle, b'\x01\x00', 1)  # 0x01 for notification
+        time.sleep(0.2)  # Small delay to allow notification command to process
+    except Exception as e:
+        print(f"Failed to enable notifications for characteristic {list(SECONDARY_DEVICE['characteristics'].keys())[0]}: {e}")
+
 def notify_ble_data():
     """Indicate data to a BLE characteristic"""
 
@@ -259,24 +279,6 @@ def notify_ble_data():
         time.sleep(0.2)  # Small delay to allow read command to process
     except Exception as e:
         print(f"Failed to enable notification for characteristic {list(SECONDARY_DEVICE['characteristics'].keys())[0]}: {e}")
-
-# def enable_notifications():
-#     """Enable notifications for BLE characteristics"""
-#     # Primary device
-#     try:
-#         print(f"Enabling notifications for characteristic {list(PRIMARY_DEVICE['characteristics'].keys())[0]} on connection handle {PRIMARY_DEVICE['conn_handle']}...")
-#         ble.gatts_notify(int(PRIMARY_DEVICE['conn_handle']), PRIMARY_DEVICE['characteristics'][0xFF11])
-#         time.sleep(0.2)  # Small delay to allow notification command to process
-#     except Exception as e:
-#         print(f"Failed to enable notifications for characteristic {list(PRIMARY_DEVICE['characteristics'].keys())[0]}: {e}")
-
-#     # Secondary device
-#     try:
-#         print(f"Enabling notifications for characteristic {list(SECONDARY_DEVICE['characteristics'].keys())[0]} on connection handle {SECONDARY_DEVICE['conn_handle']}...")
-#         ble.gatts_notify(int(SECONDARY_DEVICE['conn_handle']), SECONDARY_DEVICE['characteristics'][0xFF02])
-#         time.sleep(0.2)  # Small delay to allow notification command to process
-#     except Exception as e:
-#         print(f"Failed to enable notifications for characteristic {list(SECONDARY_DEVICE['characteristics'].keys())[0]}: {e}")
 
 def parse_weight_data(data):
     """Parse weight data from BookooScale (20-byte format)"""
@@ -581,9 +583,9 @@ class MainApp:
         self.event_handler.register_function(connect_ble, interval=2)  # Try every 2 seconds
         self.event_handler.register_function(debug_status, interval=10)  # Debug every 10 seconds
         # self.event_handler.register_function(discover_services, interval=0.5)
-        self.event_handler.register_function(write_indication_request, interval=0.5)
+        # self.event_handler.register_function(write_indication_request, interval=0.5)
         self.event_handler.register_function(discover_characteristics, interval=0.5)
-        self.event_handler.register_function(notify_ble_data, interval=1.0)
+        self.event_handler.register_function(enable_notifications, interval=0.5)
         self.event_handler.register_function(read_ble_data, interval=1.5)
 
     def run(self):
