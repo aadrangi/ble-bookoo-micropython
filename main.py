@@ -223,6 +223,61 @@ def read_ble_data():
     except Exception as e:
         print(f"Failed to read from characteristic {list(SECONDARY_DEVICE['characteristics'].keys())[0]}: {e}")
 
+def write_indication_request():
+    """Write an indication request to a BLE characteristic"""
+    # Primary device
+    try:
+        print(f"Writing indication request to characteristic {list(PRIMARY_DEVICE['characteristics'].keys())[0]} on connection handle {PRIMARY_DEVICE['conn_handle']}...")
+        ble.gattc_write(int(PRIMARY_DEVICE['conn_handle']), PRIMARY_DEVICE['characteristics'][0xFF11]+1,  b'\x02\x00')  # 0x02 for indication
+        time.sleep(0.2)  # Small delay to allow write command to process
+    except Exception as e:
+        print(f"Failed to write indication request for characteristic {list(PRIMARY_DEVICE['characteristics'].keys())[0]}: {e}")
+
+    # Secondary device
+    try:
+        print(f"Writing indication request to characteristic {list(SECONDARY_DEVICE['characteristics'].keys())[0]} on connection handle {SECONDARY_DEVICE['conn_handle']}...")
+        ble.gattc_write(int(SECONDARY_DEVICE['conn_handle']), SECONDARY_DEVICE['characteristics'][0xFF02]+1, b'\x02\x00')  # 0x02 for indication
+        time.sleep(0.2)  # Small delay to allow write command to process
+    except Exception as e:
+        print(f"Failed to write indication request for characteristic {list(SECONDARY_DEVICE['characteristics'].keys())[0]}: {e}")
+
+def notify_ble_data():
+    """Indicate data to a BLE characteristic"""
+
+    # Primary device
+    try:
+        print(f"Enabling notification for characteristic {list(PRIMARY_DEVICE['characteristics'].keys())[0]} on connection handle {PRIMARY_DEVICE['conn_handle']}...")
+        ble.gatts_notify(int(PRIMARY_DEVICE['conn_handle']), PRIMARY_DEVICE['characteristics'][0xFF11])
+        time.sleep(0.2)  # Small delay to allow read command to process
+    except Exception as e:
+        print(f"Failed to enable notification for characteristic {list(PRIMARY_DEVICE['characteristics'].keys())[0]}: {e}")
+
+    # Secondary device
+    try:
+        print(f"Enabling notification for characteristic {list(SECONDARY_DEVICE['characteristics'].keys())[0]} on connection handle {SECONDARY_DEVICE['conn_handle']}...")
+        ble.gatts_notify(int(SECONDARY_DEVICE['conn_handle']), SECONDARY_DEVICE['characteristics'][0xFF02])
+        time.sleep(0.2)  # Small delay to allow read command to process
+    except Exception as e:
+        print(f"Failed to enable notification for characteristic {list(SECONDARY_DEVICE['characteristics'].keys())[0]}: {e}")
+
+# def enable_notifications():
+#     """Enable notifications for BLE characteristics"""
+#     # Primary device
+#     try:
+#         print(f"Enabling notifications for characteristic {list(PRIMARY_DEVICE['characteristics'].keys())[0]} on connection handle {PRIMARY_DEVICE['conn_handle']}...")
+#         ble.gatts_notify(int(PRIMARY_DEVICE['conn_handle']), PRIMARY_DEVICE['characteristics'][0xFF11])
+#         time.sleep(0.2)  # Small delay to allow notification command to process
+#     except Exception as e:
+#         print(f"Failed to enable notifications for characteristic {list(PRIMARY_DEVICE['characteristics'].keys())[0]}: {e}")
+
+#     # Secondary device
+#     try:
+#         print(f"Enabling notifications for characteristic {list(SECONDARY_DEVICE['characteristics'].keys())[0]} on connection handle {SECONDARY_DEVICE['conn_handle']}...")
+#         ble.gatts_notify(int(SECONDARY_DEVICE['conn_handle']), SECONDARY_DEVICE['characteristics'][0xFF02])
+#         time.sleep(0.2)  # Small delay to allow notification command to process
+#     except Exception as e:
+#         print(f"Failed to enable notifications for characteristic {list(SECONDARY_DEVICE['characteristics'].keys())[0]}: {e}")
+
 def parse_weight_data(data):
     """Parse weight data from BookooScale (20-byte format)"""
     # if len(data) == 20:
@@ -402,7 +457,7 @@ def handle_ble_discovered_characteristics(data):
     """Handle discovered characteristics events"""
     conn_handle, _, value_handle, _, uuid = data
     print(f"\n=== BLE DISCOVERED CHARACTERISTICS EVENT ===")
-
+    print(f"All data for discovered characteristics: {data}")
     # decode the uuid
     uuid = struct.unpack('<H', uuid)[0]  # Assuming UUID is a 16-bit value
 
@@ -433,6 +488,41 @@ def handle_ble_discovered_characteristics(data):
     
     print(f"============================================")
 
+def handle_ble_notify(data):
+    """Handle BLE notification events"""
+    conn_handle, value_handle, value = data
+    print(f"\n=== BLE NOTIFICATION EVENT ===")
+    print(f"Connection handle: {conn_handle}, Value handle: {value_handle}, Value: {value}")
+
+    # Determine which device the notification belongs to
+    if conn_handle == PRIMARY_DEVICE['conn_handle']:
+        print(f"Notification from PRIMARY device {PRIMARY_DEVICE['mac']}")
+        # Handle primary device notification logic here
+    elif conn_handle == SECONDARY_DEVICE['conn_handle']:
+        print(f"Notification from SECONDARY device {SECONDARY_DEVICE['mac']}")
+        # Handle secondary device notification logic here
+    else:
+        print("Notification from UNKNOWN device")
+
+    print(f"=======================================")
+
+def handle_ble_indicate(data):
+    """Handle BLE indication events"""
+    conn_handle, value_handle, value = data
+    print(f"\n=== BLE INDICATION EVENT ===")
+    print(f"Connection handle: {conn_handle}, Value handle: {value_handle}, Value: {value}")
+
+    # Determine which device the indication belongs to
+    if conn_handle == PRIMARY_DEVICE['conn_handle']:
+        print(f"Indication from PRIMARY device {PRIMARY_DEVICE['mac']}")
+        # Handle primary device indication logic here
+    elif conn_handle == SECONDARY_DEVICE['conn_handle']:
+        print(f"Indication from SECONDARY device {SECONDARY_DEVICE['mac']}")
+        # Handle secondary device indication logic here
+    else:
+        print("Indication from UNKNOWN device")
+
+    print(f"=======================================")
 
 def ble_irq_handler(event, data):
     print(f"\n=== BLE IRQ EVENT: {event} ===")
@@ -446,8 +536,13 @@ def ble_irq_handler(event, data):
             handle_ble_read_result(data)
         # elif event == _IRQ_GATTC_SERVICE_RESULT:
         #     handle_ble_discovered_services(data)
+        elif event == _IRQ_GATTC_INDICATE:
+            handle_ble_indicate(data)
         elif event == _IRQ_GATTC_CHARACTERISTIC_RESULT:
             handle_ble_discovered_characteristics(data)
+        elif event == _IRQ_GATTC_NOTIFY:
+            handle_ble_notify(data)
+            # handle_ble_indicate(data)
         else:
             # Print unknown events for debugging
             print(f"Unknown BLE IRQ event: {event}")
@@ -485,8 +580,10 @@ class MainApp:
         self.event_handler.register_function(connect_wifi, interval=15)
         self.event_handler.register_function(connect_ble, interval=2)  # Try every 2 seconds
         self.event_handler.register_function(debug_status, interval=10)  # Debug every 10 seconds
-        # self.event_handler.register_function(discover_services, interval=1.0)
+        # self.event_handler.register_function(discover_services, interval=0.5)
+        self.event_handler.register_function(write_indication_request, interval=0.5)
         self.event_handler.register_function(discover_characteristics, interval=0.5)
+        self.event_handler.register_function(notify_ble_data, interval=1.0)
         self.event_handler.register_function(read_ble_data, interval=1.5)
 
     def run(self):
