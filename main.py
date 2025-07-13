@@ -185,7 +185,7 @@ def discover_characteristics():
     if PRIMARY_DEVICE['connected'] and PRIMARY_DEVICE['conn_handle'] is not None:
         try:
             print(f"Discovering characteristics for PRIMARY device {PRIMARY_DEVICE['mac']}...")
-            ble.gattc_discover_characte ristics(int(PRIMARY_DEVICE['conn_handle']), 0x001, 0xffff)  # Discover all characteristics
+            ble.gattc_discover_characteristics(int(PRIMARY_DEVICE['conn_handle']), 0x001, 0xffff)  # Discover all characteristics
             time.sleep(0.2)  # Small delay to allow discovery command to process
             return {"status": "discovering_primary"}
         except Exception as e:
