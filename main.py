@@ -182,7 +182,7 @@ def discover_services():
 
 def discover_characteristics():
     """Discover characteristics for connected devices"""
-    if PRIMARY_DEVICE['connected'] and PRIMARY_DEVICE['conn_handle'] is not None:
+    if PRIMARY_DEVICE['connected'] and PRIMARY_DEVICE['conn_handle'] is not None and PRIMARY_DEVICE['characteristics'][0xFF11] is None:
         try:
             print(f"Discovering characteristics for PRIMARY device {PRIMARY_DEVICE['mac']}...")
             ble.gattc_discover_characteristics(int(PRIMARY_DEVICE['conn_handle']), 0x001, 0xffff)  # Discover all characteristics
@@ -192,7 +192,7 @@ def discover_characteristics():
             print(f"Failed to discover characteristics for PRIMARY device: {e}")
             return {"error": f"primary_discovery_failed: {e}"}
     
-    if SECONDARY_DEVICE['connected'] and SECONDARY_DEVICE['conn_handle'] is not None:
+    if SECONDARY_DEVICE['connected'] and SECONDARY_DEVICE['conn_handle'] is not None and SECONDARY_DEVICE['characteristics'][0xFF02] is None:
         try:
             print(f"Discovering characteristics for SECONDARY device {SECONDARY_DEVICE['mac']}...")
             ble.gattc_discover_characteristics(int(SECONDARY_DEVICE['conn_handle']), 0x001, 0xffff)  # Discover all characteristics
@@ -281,28 +281,22 @@ def notify_ble_data():
         print(f"Failed to enable notification for characteristic {list(SECONDARY_DEVICE['characteristics'].keys())[0]}: {e}")
 
 def parse_weight_data(data):
-    """Parse weight data from BookooScale (20-byte format)"""
+    """
+    Parse weight data from BookooScale (20-byte format)
+    Input is a list of bytes (length 4)
+    Where the first byte is the sign byte,
+    bytes 8, 9, 10 are the weight bytes,
+    """
     # if len(data) == 20:
     try:
-
-        # Extract battery level from byte 13
-        battery_level = data[13]
-        
-        # Extract weight from bytes 7, 8, 9 (24-bit integer)
-        weight = (
-            (data[7] << 16) +
-            (data[8] << 8) +
-            data[9]
-        )
-        
-        # Check sign byte (byte 6)
-        if data[6] == 45:  # 45 is ASCII for '-'
-            weight = weight * -1
-        
-        # Convert to final units (divide by 100)
-        weight_kg = weight / 100
-        
-        return weight_kg, battery_level
+        weight = int.from_bytes("\\".join(data[1:]), 'big')/100
+        if data[0] == 0x2d:
+            sign = -1
+        else:
+            sign = 1
+        weight*=sign
+        print(f"Parsed weight: {weight} g")
+        return weight
     except Exception as e:
         print(f"failed to parse weight data: {e}")
     return None, None
@@ -494,11 +488,21 @@ def handle_ble_notify(data):
     """Handle BLE notification events"""
     conn_handle, value_handle, value = data
     print(f"\n=== BLE NOTIFICATION EVENT ===")
-    print(f"Connection handle: {conn_handle}, Value handle: {value_handle}, Value: {value}")
+    print(f"Connection handle: {conn_handle}, Value handle: {value_handle}, Value: {value.hex()}")
+    paired_bytes = [value[i:i+2] for i in range(0, len(value), 2)]  # Convert to list of bytes
+    # print(f"Value Hex string: {value.hex()}")
 
     # Determine which device the notification belongs to
     if conn_handle == PRIMARY_DEVICE['conn_handle']:
         print(f"Notification from PRIMARY device {PRIMARY_DEVICE['mac']}")
+        print(f"Attempting to parse weight data from notification value: {value.hex()}")
+        weight_bytes = paired_bytes[6:11]  # Extract bytes 7, 8, 9, 10 (0-indexed)
+        try:
+            weight = parse_weight_data(weight_bytes)
+            print(f"Parsed weight: {weight} g")
+        except Exception as e:
+            print(f"Error parsing weight data: {e}")
+            weight = None, None
         # Handle primary device notification logic here
     elif conn_handle == SECONDARY_DEVICE['conn_handle']:
         print(f"Notification from SECONDARY device {SECONDARY_DEVICE['mac']}")
@@ -586,7 +590,7 @@ class MainApp:
         # self.event_handler.register_function(write_indication_request, interval=0.5)
         self.event_handler.register_function(discover_characteristics, interval=0.5)
         self.event_handler.register_function(enable_notifications, interval=0.5)
-        self.event_handler.register_function(read_ble_data, interval=1.5)
+        # self.event_handler.register_function(read_ble_data, interval=1.5)
 
     def run(self):
         """Main run loop - never blocks"""
