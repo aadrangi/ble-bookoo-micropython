@@ -189,7 +189,7 @@ def connect_ble():
 
 def discover_characteristics():
     """Discover characteristics for connected devices"""
-    if PRIMARY_DEVICE['connected'] and PRIMARY_DEVICE['conn_handle'] is not None and PRIMARY_DEVICE['characteristics'][0xFF11] is None:
+    if PRIMARY_DEVICE['connected'] and PRIMARY_DEVICE['conn_handle'] is not None and PRIMARY_DEVICE['characteristics'][0xFF11]['value_handle'] is None:
         try:
             print(f"Discovering characteristics for PRIMARY device {PRIMARY_DEVICE['mac']}...")
             ble.gattc_discover_characteristics(int(PRIMARY_DEVICE['conn_handle']), 0x001, 0xffff)  # Discover all characteristics
@@ -199,7 +199,7 @@ def discover_characteristics():
             print(f"Failed to discover characteristics for PRIMARY device: {e}")
             return {"error": f"primary_discovery_failed: {e}"}
     
-    if SECONDARY_DEVICE['connected'] and SECONDARY_DEVICE['conn_handle'] is not None and SECONDARY_DEVICE['characteristics'][0xFF02] is None:
+    if SECONDARY_DEVICE['connected'] and SECONDARY_DEVICE['conn_handle'] is not None and SECONDARY_DEVICE['characteristics'][0xFF02]['value_handle'] is None:
         try:
             print(f"Discovering characteristics for SECONDARY device {SECONDARY_DEVICE['mac']}...")
             ble.gattc_discover_characteristics(int(SECONDARY_DEVICE['conn_handle']), 0x001, 0xffff)  # Discover all characteristics
