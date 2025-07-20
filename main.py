@@ -49,7 +49,7 @@ PRIMARY_DEVICE = {
     "mac": "d9:5d:10:01:41:7f",
     "services": {0X0FFE:None},
     "characteristics":{0xFF11:{"value_handle": None, "subscribed": False}},
-    "cmd": {0xFF12:None},
+    "cmd": {0xFF12:{"value_handle": None, "sent": False}},
     "found": False,
     "connected": False,
     "conn_handle": None,
@@ -254,7 +254,7 @@ def enable_notifications():
     if not PRIMARY_DEVICE['characteristics'][0xFF11]['subscribed']:
         try:
             print(f"Enabling notifications for characteristic {list(PRIMARY_DEVICE['characteristics'].keys())[0]} on connection handle {PRIMARY_DEVICE['conn_handle']}...")
-            cccd_handle = PRIMARY_DEVICE['characteristics'][0xFF11] + 1  # Assuming CCCD 
+            cccd_handle = PRIMARY_DEVICE['characteristics'][0xFF11]['value_handle'] + 1  # Assuming CCCD 
             ble.gattc_write(int(PRIMARY_DEVICE['conn_handle']), cccd_handle, b'\x01\x00', 1)  # 0x01 for notification
             time.sleep(0.2)  # Small delay to allow notification command to process
         except Exception as e:
@@ -264,7 +264,7 @@ def enable_notifications():
     if not SECONDARY_DEVICE['characteristics'][0xFF02]['subscribed']:
         try:
             print(f"Enabling notifications for characteristic {list(SECONDARY_DEVICE['characteristics'].keys())[0]} on connection handle {SECONDARY_DEVICE['conn_handle']}...")
-            cccd_handle = SECONDARY_DEVICE['characteristics'][0xFF02] + 1 # Assuming CCCD
+            cccd_handle = SECONDARY_DEVICE['characteristics'][0xFF02]['value_handle'] + 1 # Assuming CCCD
             ble.gattc_write(int(SECONDARY_DEVICE['conn_handle']), cccd_handle, b'\x01\x00', 1)
             SECONDARY_DEVICE['characteristics'][0xFF02]['subscribed'] = True  # Mark as subscribed
             print(f"Notifications enabled for secondary device characteristic {list(SECONDARY_DEVICE['characteristics'].keys())[0]}")
@@ -282,7 +282,7 @@ def start_extraction():
     try:
         print(f"Starting extraction for SECONDARY device {SECONDARY_DEVICE['mac']}...")
         start_extraction_command = b'\x02\x0C\x01\x00\x00\x00\x0f'  # Example command to start extraction
-        ble.gattc_write(int(SECONDARY_DEVICE['conn_handle']), SECONDARY_DEVICE['cmd'][0xFF01], start_extraction_command, 1)
+        ble.gattc_write(int(SECONDARY_DEVICE['conn_handle']), SECONDARY_DEVICE['cmd'][0xFF01]['value_handle'], start_extraction_command, 1)
         SECONDARY_DEVICE['extraction_inprogress'] = True
         print(f"Extraction started for secondary device {SECONDARY_DEVICE['mac']}")
     except Exception as e:
@@ -293,7 +293,7 @@ def stop_extraction():
     try:
         print(f"Stopping extraction for SECONDARY device {SECONDARY_DEVICE['mac']}...")
         stop_extraction_command = b'\x02\x0C\x00\x00\x00\x00\x0e'  # Example command to stop extraction
-        ble.gattc_write(int(SECONDARY_DEVICE['conn_handle']), SECONDARY_DEVICE['cmd'][0xFF01], stop_extraction_command, 1)
+        ble.gattc_write(int(SECONDARY_DEVICE['conn_handle']), SECONDARY_DEVICE['cmd'][0xFF01]['value_handle'], stop_extraction_command, 1)
         SECONDARY_DEVICE['extraction_inprogress'] = False
         print(f"Extraction stopped for secondary device {SECONDARY_DEVICE['mac']}")
     except Exception as e:
@@ -511,24 +511,24 @@ def handle_ble_discovered_characteristics(data):
             print(f"Located data for characteristic {uuid}")
             print(f"all data below for the characteristic: {data}")
             print(f"Assigning value handle {value_handle} to characteristic")
-            PRIMARY_DEVICE['characteristics'][uuid] = value_handle
+            PRIMARY_DEVICE['characteristics'][uuid]['value_handle'] = value_handle
         else:
             print(f"UUID {uuid} for {PRIMARY_DEVICE['name']} does not have a known characteristic")
-    if conn_handle == SECONDARY_DEVICE['conn_handle']:
+    elif conn_handle == SECONDARY_DEVICE['conn_handle']:
         print(f"Discovered characteristics for SECONDARY device {SECONDARY_DEVICE['mac']}:")
         if uuid in list(SECONDARY_DEVICE['characteristics'].keys()):
             print(f"Located data for characteristic {uuid}")
             print(f"all data below for the characteristic: {data}")
             print(f"Assigning value handle {value_handle} to characteristic")
-            SECONDARY_DEVICE['characteristics'][uuid] = value_handle
-        else:
-            print(f"UUID {uuid} for {SECONDARY_DEVICE['name']} does not have a known characteristic")
-        
-        if uuid in list(SECONDARY_DEVICE['cmd'].keys()):
+            SECONDARY_DEVICE['characteristics'][uuid]['value_handle'] = value_handle
+        elif uuid in list(SECONDARY_DEVICE['cmd'].keys()):
             print(f"Located data for command {uuid}")
             print(f"all data below for the command: {data}")
             print(f"Assigning value handle {value_handle} to command")
-            SECONDARY_DEVICE['cmd'][uuid] = value_handle
+            SECONDARY_DEVICE['cmd'][uuid]['value_handle'] = value_handle
+        else:
+            print(f"UUID {uuid} for {SECONDARY_DEVICE['name']} does not have a known characteristic")
+
     else:
         print(f"Discovered characteristics for UNKNOWN device:")
     
