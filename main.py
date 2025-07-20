@@ -266,12 +266,16 @@ def enable_notifications():
             print(f"Enabling notifications for characteristic {list(SECONDARY_DEVICE['characteristics'].keys())[0]} on connection handle {SECONDARY_DEVICE['conn_handle']}...")
             cccd_handle = SECONDARY_DEVICE['characteristics'][0xFF02]['value_handle'] + 1 # Assuming CCCD
             ble.gattc_write(int(SECONDARY_DEVICE['conn_handle']), cccd_handle, b'\x01\x00', 1)
+
+
             SECONDARY_DEVICE['characteristics'][0xFF02]['subscribed'] = True  # Mark as subscribed
             print(f"Notifications enabled for secondary device characteristic {list(SECONDARY_DEVICE['characteristics'].keys())[0]}")
             if not SECONDARY_DEVICE['extraction_inprogress']:
                 start_extraction()
                 SECONDARY_DEVICE['cmd'][0xFF01]['sent'] = True
-
+                print("Extraction started for secondary device.")
+            else:
+                print("Extraction already in progress for secondary device, skipping start command.")
               # Mark command as sent
             time.sleep(0.2)
         except Exception as e:
@@ -414,7 +418,12 @@ def handle_ble_disconnect(data):
                 # ble.gattc_write(int(SECONDARY_DEVICE['conn_handle']), SECONDARY_DEVICE['characteristics'][0xFF02] + 1, stop_extraction_command, 1)  # Disable notifications
                 SECONDARY_DEVICE['connected'] = False
                 SECONDARY_DEVICE['conn_handle'] = None
-                SECONDARY_DEVICE['extraction_inprogress'] = False
+                if SECONDARY_DEVICE['extraction_inprogress']:
+                    print("Stopping extraction for secondary device...")
+                    stop_extraction()
+                    SECONDARY_DEVICE['cmd'][0xFF01]['sent'] = False
+                else:
+                    print("No extraction in progress for secondary device.")
             except Exception as e:
                 print(f"Error disconnecting secondary device: {e}")
         
